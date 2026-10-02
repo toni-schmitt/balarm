@@ -14,9 +14,6 @@ struct BalarmApp: App {
         .windowResizability(.contentSize)
         .windowBackgroundDragBehavior(.enabled)
         .defaultPosition(.center)
-        .commands {
-            TypingAnimationCommands()
-        }
     }
 }
 

@@ -50,9 +50,6 @@ over, so `90` runs for 1 min 30 s.
 After an alarm ends, its duration stays in the input (dimmed): Return starts it again,
 typing a digit replaces it. The last duration is remembered across launches.
 
-View › Typing Animation (⌘1–⌘3) switches how digits move while you type: Slide, Roll or
-Crossfade.
-
 Closing the window quits Balarm and cancels a running alarm. While an alarm runs, the Mac
 does not go to sleep on its own; if it sleeps anyway (lid closed), the alarm rings right after
 waking.
