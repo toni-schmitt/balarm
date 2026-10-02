@@ -9,6 +9,8 @@ final class AlarmController {
     private(set) var entry: DurationEntry
     /// `nil` while a duration is being typed.
     private(set) var countdown: Countdown?
+    /// R asks before throwing away a countdown in progress; ringing repeats without asking.
+    var isConfirmingRestart = false
 
     @ObservationIgnored private let ringer = Ringer()
     @ObservationIgnored private let notifier = AlarmNotifier()
@@ -47,6 +49,8 @@ final class AlarmController {
 
     /// Returns whether the key was used, so unused keys keep their system behavior.
     func handle(_ key: AlarmKey) -> Bool {
+        // The restart prompt owns the keyboard while open, so Return and Esc answer it.
+        guard !isConfirmingRestart else { return false }
         guard let countdown else { return handleEntry(key) }
 
         if countdown.isRinging {
@@ -61,6 +65,7 @@ final class AlarmController {
         switch key {
         case .space: togglePause()
         case .escape: stop()
+        case .repeatAlarm: isConfirmingRestart = true
         default: return false
         }
         return true
@@ -105,6 +110,7 @@ final class AlarmController {
         ringer.stop()
         notifier.withdraw()
         setKeepAwake(false)
+        isConfirmingRestart = false
         entry = DurationEntry(prefilling: countdown.totalSeconds) ?? DurationEntry()
         self.countdown = nil
     }
@@ -128,6 +134,7 @@ final class AlarmController {
     private func start(seconds: Int) {
         ringer.stop()
         notifier.withdraw()
+        isConfirmingRestart = false
 
         countdown = Countdown(total: .seconds(seconds), startingAt: .now)
         UserDefaults.standard.set(seconds, forKey: Self.lastDurationKey)
@@ -156,6 +163,8 @@ final class AlarmController {
 
         countdown.ring()
         self.countdown = countdown
+        // Once it rings, R repeats directly, so a pending restart question no longer applies.
+        isConfirmingRestart = false
         ringer.start()
         notifier.post(body: DurationText.words(seconds: countdown.totalSeconds))
     }
