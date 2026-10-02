@@ -19,8 +19,9 @@ alert with **Stop** and **Repeat**.
 swift test            # runs the unit tests
 ```
 
-If `swift test` fails with "plugin for module 'TestingMacros' not found" right after a debug
-`swift build`, run it again; that is a SwiftPM quirk with the Command Line Tools.
+With only the Command Line Tools installed, `swift test` intermittently fails with "plugin for
+module 'TestingMacros' not found", mostly after a debug `swift build`. Running it again clears
+it, occasionally only on the second or third try.
 
 `build.sh` copies the Radial tone from the system's ToneLibrary into the app bundle, so the
 repository contains no Apple audio. The app is ad-hoc signed.
@@ -44,10 +45,13 @@ over, so `90` runs for 1 min 30 s.
 | Return         | start                      |                | stop    |
 | Space          |                            | pause / resume |         |
 | Esc or `⌘.`    | clear                      | cancel         | stop    |
-| `R`            |                            |                | repeat  |
+| `R`            |                            | restart (asks) | repeat  |
 
 After an alarm ends, its duration stays in the input (dimmed): Return starts it again,
 typing a digit replaces it. The last duration is remembered across launches.
+
+View › Typing Animation (⌘1–⌘3) switches how digits move while you type: Slide, Roll or
+Crossfade.
 
 Closing the window quits Balarm and cancels a running alarm. While an alarm runs, the Mac
 does not go to sleep on its own; if it sleeps anyway (lid closed), the alarm rings right after
