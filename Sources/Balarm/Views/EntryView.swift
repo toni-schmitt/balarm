@@ -34,8 +34,8 @@ private let digitFontSize: CGFloat = 38
 /// and the zeros that only pad the display faint.
 ///
 /// Every keystroke shifts all digits one place, and rolling each changed position smears
-/// the whole display. So only the newest digit, always in the last position, rolls in;
-/// the shifted digits change in place.
+/// the whole display. So only the position that lights up rolls in (typing) or the one
+/// that goes dark rolls back (deleting); the other digits change in place.
 private struct EntryDigits: View {
     let entry: DurationEntry
 
@@ -46,19 +46,17 @@ private struct EntryDigits: View {
                 if slot == 2 || slot == 4 {
                     Text(":").foregroundStyle(style(isPadding: slot < padding))
                 }
-                if slot == DurationEntry.maxDigits - 1 {
-                    // A new identity per keystroke, so the digit rolls in even when it
-                    // repeats the one before it.
-                    ZStack {
-                        Text(String(digit))
-                            .foregroundStyle(style(isPadding: slot < padding))
-                            .id(entry)
-                            .transition(.roll)
-                    }
-                } else {
+                // A remembered duration counts as dark, so typing over it rolls in only
+                // the typed digit.
+                let isLit = slot >= padding && !entry.isPrefilled
+                ZStack {
                     Text(String(digit))
                         .foregroundStyle(style(isPadding: slot < padding))
                         .contentTransition(.identity)
+                        // A new identity only when the position lights up or goes dark,
+                        // which is what makes exactly that position roll.
+                        .id(isLit)
+                        .transition(.roll(isLit: isLit))
                 }
             }
         }
@@ -75,10 +73,9 @@ private struct EntryDigits: View {
     }
 }
 
-/// The newest digit rises into place while the one it replaces rises out, both briefly
-/// blurred, like a counter ticking over.
+/// A digit rolling through its position, briefly blurred, like a counter ticking over.
 private struct Roll: ViewModifier {
-    /// 1 is below its place (arriving), 0 in place, -1 above (leaving).
+    /// 1 is below its place, 0 in place, -1 above.
     var position: CGFloat
 
     func body(content: Content) -> some View {
@@ -90,10 +87,9 @@ private struct Roll: ViewModifier {
 }
 
 private extension AnyTransition {
-    static var roll: AnyTransition {
-        .asymmetric(
-            insertion: .modifier(active: Roll(position: 1), identity: Roll(position: 0)),
-            removal: .modifier(active: Roll(position: -1), identity: Roll(position: 0))
-        )
+    /// Lighting up rolls upward: the dark digit leaves above, the lit one arrives from below.
+    /// Going dark reverses it, so a lit digit leaves below and a dark one arrives from above.
+    static func roll(isLit: Bool) -> AnyTransition {
+        .modifier(active: Roll(position: isLit ? 1 : -1), identity: Roll(position: 0))
     }
 }
