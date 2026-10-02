@@ -62,6 +62,23 @@ import Testing
         #expect(countdown.isRinging)
     }
 
+    @Test func pauseKeepsFractionAndRoundsUp() {
+        var countdown = Countdown(total: .seconds(60), startingAt: start)
+        countdown.pause(at: start + .seconds(14.5))
+        #expect(countdown.fractionRemaining(at: start + .seconds(500)) == 45.5 / 60)
+        #expect(countdown.displaySeconds(at: start + .seconds(500)) == 46)
+    }
+
+    @Test func pauseIsIgnoredOnceDue() {
+        var countdown = Countdown(total: .seconds(60), startingAt: start)
+        countdown.pause(at: start + .seconds(60))
+        #expect(countdown.isRunning)
+        #expect(countdown.isDue(at: start + .seconds(60)))
+
+        countdown.pause(at: start + .seconds(75))
+        #expect(countdown.isRunning)
+    }
+
     @Test func ringingHasNothingLeft() {
         var countdown = Countdown(total: .seconds(60), startingAt: start)
         countdown.ring()

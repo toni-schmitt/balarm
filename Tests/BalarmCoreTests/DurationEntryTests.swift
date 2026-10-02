@@ -29,6 +29,8 @@ import Testing
         (90, [1, 3, 0]),
         (3600 + 30 * 60, [1, 3, 0, 0, 0]),
         (99 * 3600 + 59 * 60 + 59, [9, 9, 5, 9, 5, 9]),
+        // Typed as 9:99:99, remembered as 10:40:39.
+        (9 * 3600 + 99 * 60 + 99, [1, 0, 4, 0, 3, 9]),
     ]
 
     @Test(arguments: typingCases)
@@ -81,7 +83,7 @@ import Testing
         #expect(entry.totalSeconds == seconds)
     }
 
-    @Test(arguments: [0, -1, 100 * 3600])
+    @Test(arguments: [0, -1, 99 * 3600 + 59 * 60 + 60])
     func prefillRejectsUnrepresentableDurations(seconds: Int) {
         #expect(DurationEntry(prefilling: seconds) == nil)
     }

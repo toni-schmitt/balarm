@@ -41,7 +41,8 @@ public struct DurationEntry: Equatable, Sendable {
             clear()
             return
         }
-        digits.removeLast(digits.isEmpty ? 0 : 1)
+        guard !digits.isEmpty else { return }
+        digits.removeLast()
     }
 
     public mutating func clear() {

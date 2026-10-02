@@ -66,8 +66,10 @@ public struct Countdown: Equatable, Sendable {
         return now >= deadline
     }
 
+    /// Does nothing once the deadline has passed: there is no time left to keep.
     public mutating func pause(at now: ContinuousClock.Instant) {
         guard isRunning else { return }
+        guard !isDue(at: now) else { return }
         phase = .paused(remaining: remaining(at: now))
     }
 
