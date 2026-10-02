@@ -3,7 +3,7 @@
 ///
 /// Fields are not validated per position, so `90` reads as `00:00:90` and runs for
 /// 1 min 30 s. That keeps every keystroke meaningful without range errors or timeouts.
-public struct DurationEntry: Equatable, Sendable {
+public struct DurationEntry: Hashable, Sendable {
     /// Six digits fill `hh:mm:ss`.
     public static let maxDigits = 6
 

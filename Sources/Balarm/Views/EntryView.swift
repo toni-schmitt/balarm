@@ -28,8 +28,14 @@ struct EntryView: View {
     }
 }
 
+private let digitFontSize: CGFloat = 38
+
 /// `hh:mm:ss` with typed digits bright, a remembered duration dimmed,
 /// and the zeros that only pad the display faint.
+///
+/// Every keystroke shifts all digits one place, and rolling each changed position smears
+/// the whole display. So only the newest digit, always in the last position, rolls in;
+/// the shifted digits change in place.
 private struct EntryDigits: View {
     let entry: DurationEntry
 
@@ -40,15 +46,23 @@ private struct EntryDigits: View {
                 if slot == 2 || slot == 4 {
                     Text(":").foregroundStyle(style(isPadding: slot < padding))
                 }
-                Text(String(digit))
-                    .foregroundStyle(style(isPadding: slot < padding))
-                    // Every keystroke shifts all digits one place, so rolling each changed
-                    // position smears the whole display. Only the newest digit rolls; the
-                    // shifted ones change in place.
-                    .contentTransition(slot == DurationEntry.maxDigits - 1 ? .numericText() : .identity)
+                if slot == DurationEntry.maxDigits - 1 {
+                    // A new identity per keystroke, so the digit rolls in even when it
+                    // repeats the one before it.
+                    ZStack {
+                        Text(String(digit))
+                            .foregroundStyle(style(isPadding: slot < padding))
+                            .id(entry)
+                            .transition(.roll)
+                    }
+                } else {
+                    Text(String(digit))
+                        .foregroundStyle(style(isPadding: slot < padding))
+                        .contentTransition(.identity)
+                }
             }
         }
-        .font(.system(size: 38, weight: .light).monospacedDigit())
+        .font(.system(size: digitFontSize, weight: .light).monospacedDigit())
         .lineLimit(1)
         .animation(.snappy(duration: 0.12), value: entry)
         .accessibilityElement(children: .ignore)
@@ -58,5 +72,28 @@ private struct EntryDigits: View {
     private func style(isPadding: Bool) -> HierarchicalShapeStyle {
         if isPadding { return .tertiary }
         return entry.isPrefilled ? .secondary : .primary
+    }
+}
+
+/// The newest digit rises into place while the one it replaces rises out, both briefly
+/// blurred, like a counter ticking over.
+private struct Roll: ViewModifier {
+    /// 1 is below its place (arriving), 0 in place, -1 above (leaving).
+    var position: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .offset(y: position * digitFontSize / 2)
+            .blur(radius: abs(position) * 3)
+            .opacity(1 - abs(position))
+    }
+}
+
+private extension AnyTransition {
+    static var roll: AnyTransition {
+        .asymmetric(
+            insertion: .modifier(active: Roll(position: 1), identity: Roll(position: 0)),
+            removal: .modifier(active: Roll(position: -1), identity: Roll(position: 0))
+        )
     }
 }
