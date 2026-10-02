@@ -3,9 +3,14 @@ import AppKit
 import CoreGraphics
 import Foundation
 
-// Renders the Balarm app icon (a dark squircle with a radial progress ring,
-// echoing the app's own countdown UI) at every size iconutil requires, then
-// packs the set into a single .icns.
+// Renders the Balarm app icon (a radial progress ring on a light plate, echoing
+// the app's own countdown UI) at every size iconutil requires, then packs the
+// set into a single .icns.
+//
+// The artwork is opaque and fills the whole canvas, with no rounded corners,
+// padding or shadow of its own. macOS 26 clips such icons to its standard
+// squircle and adds the glass rim; artwork with its own shape and transparent
+// margins is instead shrunk into a grey "legacy" frame.
 
 guard CommandLine.arguments.count == 2 else {
     FileHandle.standardError.write("usage: swift make-icon.swift <output.icns>\n".data(using: .utf8)!)
@@ -13,58 +18,11 @@ guard CommandLine.arguments.count == 2 else {
 }
 let outputPath = CommandLine.arguments[1]
 
-// MARK: - Squircle path
-
-/// Builds a closed path for a rounded rect whose corners follow a quarter
-/// superellipse rather than a circular arc, which reads as a continuous
-/// "squircle" corner instead of the sharper transition of a plain rounded
-/// rect — matching the macOS Big Sur+ icon grid so the icon isn't boxed into
-/// a legacy frame.
-func squirclePath(rect: CGRect, radius: CGFloat, exponent: CGFloat = 5, samplesPerCorner: Int = 48) -> CGPath {
-    let path = CGMutablePath()
-    let minX = rect.minX, minY = rect.minY, maxX = rect.maxX, maxY = rect.maxY
-    let r = radius
-
-    func local(_ t: CGFloat) -> (CGFloat, CGFloat) {
-        let lx = r * pow(cos(t), 2 / exponent)
-        let ly = r * pow(sin(t), 2 / exponent)
-        return (lx, ly)
-    }
-
-    // Each corner's offset is the same quarter superellipse rotated/reflected
-    // so all four can be sampled with t going 0...pi/2 and chained directly
-    // with straight edges in between (no separate line-drawing step needed).
-    let corners: [(center: CGPoint, offset: (CGFloat, CGFloat) -> CGPoint)] = [
-        (CGPoint(x: minX + r, y: minY + r), { (lx, ly) in CGPoint(x: -lx, y: -ly) }),
-        (CGPoint(x: maxX - r, y: minY + r), { (lx, ly) in CGPoint(x: ly, y: -lx) }),
-        (CGPoint(x: maxX - r, y: maxY - r), { (lx, ly) in CGPoint(x: lx, y: ly) }),
-        (CGPoint(x: minX + r, y: maxY - r), { (lx, ly) in CGPoint(x: -ly, y: lx) }),
-    ]
-
-    var isFirst = true
-    for corner in corners {
-        for i in 0...samplesPerCorner {
-            let t = (CGFloat(i) / CGFloat(samplesPerCorner)) * (CGFloat.pi / 2)
-            let (lx, ly) = local(t)
-            let offset = corner.offset(lx, ly)
-            let point = CGPoint(x: corner.center.x + offset.x, y: corner.center.y + offset.y)
-            if isFirst {
-                path.move(to: point)
-                isFirst = false
-            } else {
-                path.addLine(to: point)
-            }
-        }
-    }
-    path.closeSubpath()
-    return path
-}
-
 func color(_ hex: UInt32, alpha: CGFloat = 1.0) -> CGColor {
     let r = CGFloat((hex >> 16) & 0xFF) / 255.0
     let g = CGFloat((hex >> 8) & 0xFF) / 255.0
     let b = CGFloat(hex & 0xFF) / 255.0
-    return CGColor(red: r, green: g, blue: b, alpha: alpha)
+    return CGColor(srgbRed: r, green: g, blue: b, alpha: alpha)
 }
 
 // MARK: - Drawing
@@ -74,81 +32,56 @@ func color(_ hex: UInt32, alpha: CGFloat = 1.0) -> CGColor {
 /// the same vector description instead of being downscaled from one bitmap.
 func drawIcon(in ctx: CGContext) {
     let canvas: CGFloat = 1024
-    let margin: CGFloat = 100
-    let bodyRect = CGRect(x: margin, y: margin, width: canvas - 2 * margin, height: canvas - 2 * margin)
-    let cornerRadius: CGFloat = 185
-    let bodyPath = squirclePath(rect: bodyRect, radius: cornerRadius)
+    let sRGB = CGColorSpace(name: CGColorSpace.sRGB)!
 
-    // Cast the drop shadow from an opaque fill, then paint the real gradient
-    // on top with no shadow set, so the shadow only shows outside the shape
-    // instead of muddying the gradient itself.
-    ctx.saveGState()
-    ctx.setShadow(offset: CGSize(width: 0, height: -10), blur: 20, color: color(0x000000, alpha: 0.30))
-    ctx.addPath(bodyPath)
-    ctx.setFillColor(color(0x000000))
-    ctx.fillPath()
-    ctx.restoreGState()
+    // White-to-grey plate, the same family as Clock's and Calculator's.
+    let plate = CGGradient(colorsSpace: sRGB, colors: [color(0xFFFFFF), color(0xDCDDE2)] as CFArray, locations: [0, 1])!
+    ctx.drawLinearGradient(plate, start: CGPoint(x: 0, y: canvas), end: .zero, options: [])
+
+    let center = CGPoint(x: canvas / 2, y: canvas / 2)
+    let radius = canvas * 0.27
+    let lineWidth = canvas * 0.085
 
     ctx.saveGState()
-    ctx.addPath(bodyPath)
-    ctx.clip()
-    let bodyGradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: [color(0x2B2D33), color(0x121316)] as CFArray, locations: [0, 1])!
-    ctx.drawLinearGradient(bodyGradient, start: CGPoint(x: canvas / 2, y: bodyRect.maxY), end: CGPoint(x: canvas / 2, y: bodyRect.minY), options: [])
-    ctx.restoreGState()
-
-    // Faint glassy highlight along the inner top edge; the gradient's own
-    // falloff keeps it from reading as a full inner border.
-    ctx.saveGState()
-    let insetRect = bodyRect.insetBy(dx: 1.5, dy: 1.5)
-    let highlightPath = squirclePath(rect: insetRect, radius: cornerRadius - 1.5)
-    ctx.addPath(highlightPath)
-    ctx.setLineWidth(2)
-    ctx.replacePathWithStrokedPath()
-    ctx.clip()
-    let highlightGradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: [color(0xFFFFFF, alpha: 0.35), color(0xFFFFFF, alpha: 0.0)] as CFArray, locations: [0, 1])!
-    ctx.drawLinearGradient(highlightGradient, start: CGPoint(x: canvas / 2, y: bodyRect.maxY), end: CGPoint(x: canvas / 2, y: bodyRect.maxY - bodyRect.height * 0.35), options: [])
-    ctx.restoreGState()
-
-    let ringCenter = CGPoint(x: canvas / 2, y: canvas / 2)
-    let ringRadius: CGFloat = 260
-    let strokeWidth: CGFloat = 56
-
-    ctx.saveGState()
-    ctx.setLineWidth(strokeWidth)
-    ctx.setLineCap(.round)
-    ctx.setStrokeColor(color(0xFFFFFF, alpha: 0.12))
-    ctx.addArc(center: ringCenter, radius: ringRadius, startAngle: 0, endAngle: 2 * CGFloat.pi, clockwise: false)
+    ctx.setLineWidth(lineWidth)
+    ctx.setStrokeColor(color(0x000000, alpha: 0.08))
+    ctx.addArc(center: center, radius: radius, startAngle: 0, endAngle: 2 * .pi, clockwise: false)
     ctx.strokePath()
     ctx.restoreGState()
 
-    // 12 o'clock, sweeping clockwise for 72% of the circle.
+    // 12 o'clock, sweeping clockwise for 72% of the circle (CoreGraphics is
+    // y-up, so clockwise means decreasing angles).
     let startAngle = CGFloat.pi / 2
-    let sweep: CGFloat = 0.72 * 2 * CGFloat.pi
-    let endAngle = startAngle - sweep
-    let startPoint = CGPoint(x: ringCenter.x + ringRadius * cos(startAngle), y: ringCenter.y + ringRadius * sin(startAngle))
-    let endPoint = CGPoint(x: ringCenter.x + ringRadius * cos(endAngle), y: ringCenter.y + ringRadius * sin(endAngle))
+    let endAngle = startAngle - 0.72 * 2 * .pi
+    let arc = CGMutablePath()
+    arc.addArc(center: center, radius: radius, startAngle: startAngle, endAngle: endAngle, clockwise: true)
+    let arcShape = arc.copy(strokingWithWidth: lineWidth, lineCap: .round, lineJoin: .round, miterLimit: 10)
 
+    // A soft shadow lifts the arc off the plate, the way layered system icons read.
     ctx.saveGState()
-    let arcPath = CGMutablePath()
-    arcPath.addArc(center: ringCenter, radius: ringRadius, startAngle: startAngle, endAngle: endAngle, clockwise: true)
-    ctx.addPath(arcPath)
-    ctx.setLineWidth(strokeWidth)
-    ctx.setLineCap(.round)
-    ctx.replacePathWithStrokedPath()
+    ctx.setShadow(offset: CGSize(width: 0, height: -canvas * 0.012), blur: canvas * 0.04, color: color(0x000000, alpha: 0.18))
+    ctx.addPath(arcShape)
+    ctx.setFillColor(color(0x0A84FF))
+    ctx.fillPath()
+    ctx.restoreGState()
+
+    // Extend the gradient past its endpoints so the round caps are painted too.
+    ctx.saveGState()
+    ctx.addPath(arcShape)
     ctx.clip()
-    // Extend the gradient past its two endpoints — otherwise the stroke's
-    // round caps (which sit outside the start/end points along the ring)
-    // would be left unpainted and show the track color through the clip.
-    let progressGradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: [color(0x0A84FF), color(0x64B5FF)] as CFArray, locations: [0, 1])!
-    ctx.drawLinearGradient(progressGradient, start: startPoint, end: endPoint, options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
+    let arcGradient = CGGradient(colorsSpace: sRGB, colors: [color(0x0A84FF), color(0x5AB3FF)] as CFArray, locations: [0, 1])!
+    ctx.drawLinearGradient(
+        arcGradient,
+        start: CGPoint(x: canvas * 0.7, y: canvas * 0.8),
+        end: CGPoint(x: canvas * 0.3, y: canvas * 0.25),
+        options: [.drawsBeforeStartLocation, .drawsAfterEndLocation]
+    )
     ctx.restoreGState()
 
-    ctx.saveGState()
-    let dotDiameter = strokeWidth * 0.55
-    let dotRect = CGRect(x: endPoint.x - dotDiameter / 2, y: endPoint.y - dotDiameter / 2, width: dotDiameter, height: dotDiameter)
+    let tip = CGPoint(x: center.x + radius * cos(endAngle), y: center.y + radius * sin(endAngle))
+    let dot = lineWidth * 0.45
     ctx.setFillColor(color(0xFFFFFF))
-    ctx.fillEllipse(in: dotRect)
-    ctx.restoreGState()
+    ctx.fillEllipse(in: CGRect(x: tip.x - dot / 2, y: tip.y - dot / 2, width: dot, height: dot))
 }
 
 // MARK: - Rendering to exact pixel sizes
