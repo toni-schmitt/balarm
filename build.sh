@@ -23,6 +23,16 @@ ICON_PATH="$BUILD_DIR/AppIcon.icns"
 # The Radial tone ships with macOS but isn't ours to redistribute, so it's
 # pulled from the system at build time instead of being committed.
 SYSTEM_SOUND="/System/Library/PrivateFrameworks/ToneLibrary.framework/Versions/A/Resources/Ringtones/Radial-EncoreInfinitum.m4r"
+INSTALL_PATH="/Applications/$APP_NAME.app"
+# Staged on the same volume as the installed app, so moving it into place is a rename.
+STAGING_PATH="/Applications/.$APP_NAME.app.installing"
+
+# Checked before anything is built or removed, so a missing tone leaves the
+# previous build in place.
+[ -f "$SYSTEM_SOUND" ] || {
+	echo "error: system alarm sound not found at $SYSTEM_SOUND" >&2
+	exit 1
+}
 
 swift build -c release --product "$APP_NAME"
 BIN_PATH="$(swift build -c release --show-bin-path)/$APP_NAME"
@@ -32,11 +42,6 @@ mkdir -p "$APP_BUNDLE/Contents/MacOS" "$APP_BUNDLE/Contents/Resources"
 cp "$BIN_PATH" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 cp Support/Info.plist "$APP_BUNDLE/Contents/Info.plist"
 printf 'APPL????' >"$APP_BUNDLE/Contents/PkgInfo"
-
-[ -f "$SYSTEM_SOUND" ] || {
-	echo "error: system alarm sound not found at $SYSTEM_SOUND" >&2
-	exit 1
-}
 cp "$SYSTEM_SOUND" "$APP_BUNDLE/Contents/Resources/Radial.m4a"
 
 # Regenerating the icon takes a few seconds, so only do it when the script
@@ -52,10 +57,14 @@ codesign --force --sign - --identifier "$BUNDLE_ID" "$APP_BUNDLE"
 codesign --verify --strict "$APP_BUNDLE"
 
 if [ "$mode" = install ]; then
-	rm -rf "/Applications/$APP_NAME.app"
-	ditto "$APP_BUNDLE" "/Applications/$APP_NAME.app"
+	# The installed app is replaced only once the copy is complete, so a failed
+	# copy leaves the previous version installed.
+	rm -rf "$STAGING_PATH"
+	ditto "$APP_BUNDLE" "$STAGING_PATH"
+	rm -rf "$INSTALL_PATH"
+	mv "$STAGING_PATH" "$INSTALL_PATH"
 	echo "A running $APP_NAME keeps the previous version in memory until relaunched."
-	echo "Installed /Applications/$APP_NAME.app"
+	echo "Installed $INSTALL_PATH"
 else
 	echo "$APP_BUNDLE"
 fi
