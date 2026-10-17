@@ -171,10 +171,11 @@ final class AlarmController {
 
     /// Keeps the Mac from idle-sleeping and the app out of App Nap,
     /// both of which would delay the alarm or cut the ringing short.
+    /// `.userInitiated` covers both; it includes `.idleSystemSleepDisabled`.
     private func setKeepAwake(_ isOn: Bool) {
         if isOn, keepAwakeActivity == nil {
             keepAwakeActivity = ProcessInfo.processInfo.beginActivity(
-                options: [.userInitiated, .idleSystemSleepDisabled],
+                options: .userInitiated,
                 reason: "An alarm is running"
             )
         } else if !isOn, let keepAwakeActivity {
