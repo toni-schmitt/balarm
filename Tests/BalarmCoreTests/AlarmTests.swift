@@ -30,12 +30,12 @@ import Testing
 
     private func startEffects(seconds: Int, at now: ContinuousClock.Instant) -> [Alarm.Effect] {
         [
-            .stopRinger, .withdrawAlert, .saveLastDuration(seconds: seconds), .keepAwake(true),
+            .stopRinger, .withdrawAlert, .saveLastDuration(seconds: seconds), .keepAwake(isOn: true),
             .scheduleFire(at: now + .seconds(seconds)),
         ]
     }
 
-    private let stopEffects: [Alarm.Effect] = [.cancelFire, .stopRinger, .withdrawAlert, .keepAwake(false)]
+    private let stopEffects: [Alarm.Effect] = [.cancelFire, .stopRinger, .withdrawAlert, .keepAwake(isOn: false)]
 
     // MARK: - Typing
 
@@ -95,11 +95,11 @@ import Testing
 
     @Test func spacePausesAndResumes() {
         var alarm = running(seconds: 60)
-        #expect(alarm.handle(.space, at: start + .seconds(20)) == [.keepAwake(false), .cancelFire])
+        #expect(alarm.handle(.space, at: start + .seconds(20)) == [.keepAwake(isOn: false), .cancelFire])
         #expect(alarm.countdown?.isPaused == true)
 
         #expect(alarm.handle(.space, at: start + .seconds(100)) == [
-            .keepAwake(true), .scheduleFire(at: start + .seconds(140)),
+            .keepAwake(isOn: true), .scheduleFire(at: start + .seconds(140)),
         ])
         #expect(alarm.countdown?.isRunning == true)
     }

@@ -15,7 +15,7 @@ public struct Alarm: Equatable, Sendable {
         /// Replaces any pending fire with one at `deadline`.
         case scheduleFire(at: ContinuousClock.Instant)
         case cancelFire
-        case keepAwake(Bool)
+        case keepAwake(isOn: Bool)
         case saveLastDuration(seconds: Int)
     }
 
@@ -79,7 +79,7 @@ public struct Alarm: Equatable, Sendable {
         }
         self.countdown = countdown
 
-        return [.keepAwake(countdown.isRunning), fireEffect()]
+        return [.keepAwake(isOn: countdown.isRunning), fireEffect()]
     }
 
     /// Ends the alarm, whether it is still counting down or already ringing,
@@ -90,7 +90,7 @@ public struct Alarm: Equatable, Sendable {
         isConfirmingRestart = false
         entry = DurationEntry(prefilling: countdown.totalSeconds) ?? DurationEntry()
         self.countdown = nil
-        return [.cancelFire, .stopRinger, .withdrawAlert, .keepAwake(false)]
+        return [.cancelFire, .stopRinger, .withdrawAlert, .keepAwake(isOn: false)]
     }
 
     public mutating func repeatAlarm(at now: ContinuousClock.Instant) -> [Effect] {
@@ -136,7 +136,7 @@ public struct Alarm: Equatable, Sendable {
         isConfirmingRestart = false
         countdown = Countdown(total: .seconds(seconds), startingAt: now)
         return [
-            .stopRinger, .withdrawAlert, .saveLastDuration(seconds: seconds), .keepAwake(true),
+            .stopRinger, .withdrawAlert, .saveLastDuration(seconds: seconds), .keepAwake(isOn: true),
             fireEffect(),
         ]
     }
