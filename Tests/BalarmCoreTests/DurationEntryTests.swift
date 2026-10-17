@@ -31,6 +31,13 @@ import Testing
         (99 * 3600 + 59 * 60 + 59, [9, 9, 5, 9, 5, 9]),
         // Typed as 9:99:99, remembered as 10:40:39.
         (9 * 3600 + 99 * 60 + 99, [1, 0, 4, 0, 3, 9]),
+        // Past 99:59:59 the minutes overflow instead of the hours.
+        (99 * 3600 + 59 * 60 + 60, [9, 9, 6, 0, 0, 0]),
+        // Typed as 99:98:99, remembered as 99:99:39.
+        (99 * 3600 + 98 * 60 + 99, [9, 9, 9, 9, 3, 9]),
+        // Once the minutes reach 99 too, the seconds overflow.
+        (99 * 3600 + 99 * 60 + 60, [9, 9, 9, 9, 6, 0]),
+        (99 * 3600 + 99 * 60 + 99, [9, 9, 9, 9, 9, 9]),
     ]
 
     @Test(arguments: typingCases)
@@ -83,9 +90,17 @@ import Testing
         #expect(entry.totalSeconds == seconds)
     }
 
-    @Test(arguments: [0, -1, 99 * 3600 + 59 * 60 + 60])
+    @Test(arguments: [0, -1, 99 * 3600 + 99 * 60 + 100])
     func prefillRejectsUnrepresentableDurations(seconds: Int) {
         #expect(DurationEntry(prefilling: seconds) == nil)
+    }
+
+    /// Every duration the keyboard can produce must come back after the alarm ends.
+    @Test func prefillKeepsEveryTypeableDurationAboveTheNormalRange() throws {
+        for seconds in (99 * 3600 + 59 * 60 + 59)...(99 * 3600 + 99 * 60 + 99) {
+            let entry = try #require(DurationEntry(prefilling: seconds))
+            #expect(entry.totalSeconds == seconds)
+        }
     }
 
     @Test func typingReplacesPrefill() throws {

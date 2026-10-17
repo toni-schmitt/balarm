@@ -16,11 +16,17 @@ public struct DurationEntry: Hashable, Sendable {
     public init() {}
 
     /// Shows `seconds` as a remembered duration, normalized to `hh:mm:ss`.
-    /// Returns `nil` when the duration cannot be shown in six digits (zero or over 99:59:59).
+    ///
+    /// Typing can overflow every field, up to 99:99:99. Beyond 99:59:59 the hours stay at 99
+    /// and the minutes, then the seconds, overflow instead, so every typeable duration can be
+    /// shown again: 362439 s reads as 99:99:99.
+    /// Returns `nil` when the duration cannot be shown in six digits (zero or over 99:99:99).
     public init?(prefilling seconds: Int) {
-        guard seconds > 0, seconds <= 99 * 3600 + 59 * 60 + 59 else { return nil }
-        let normalized = seconds / 3600 * 10_000 + seconds % 3600 / 60 * 100 + seconds % 60
-        digits = String(normalized).compactMap(\.wholeNumberValue)
+        guard seconds > 0, seconds <= 99 * 3600 + 99 * 60 + 99 else { return nil }
+        let hours = min(99, seconds / 3600)
+        let minutes = min(99, (seconds - hours * 3600) / 60)
+        let secs = seconds - hours * 3600 - minutes * 60
+        digits = String(hours * 10_000 + minutes * 100 + secs).compactMap(\.wholeNumberValue)
         isPrefilled = true
     }
 
