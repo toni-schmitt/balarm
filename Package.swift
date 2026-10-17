@@ -15,5 +15,9 @@ let package = Package(
             name: "BalarmCoreTests",
             dependencies: ["BalarmCore"]
         ),
+        .testTarget(
+            name: "BalarmTests",
+            dependencies: ["Balarm"]
+        ),
     ]
 )
