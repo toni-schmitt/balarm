@@ -79,7 +79,7 @@ public struct Alarm: Equatable, Sendable {
         }
         self.countdown = countdown
 
-        return [.keepAwake(countdown.isRunning), scheduleFire()]
+        return [.keepAwake(countdown.isRunning), fireEffect()]
     }
 
     /// Ends the alarm, whether it is still counting down or already ringing,
@@ -112,7 +112,7 @@ public struct Alarm: Equatable, Sendable {
     public mutating func ringIfDue(at now: ContinuousClock.Instant) -> [Effect] {
         guard var countdown else { return [] }
         guard countdown.isRunning else { return [] }
-        guard countdown.isDue(at: now) else { return [scheduleFire()] }
+        guard countdown.isDue(at: now) else { return [fireEffect()] }
 
         countdown.ring()
         self.countdown = countdown
@@ -137,12 +137,12 @@ public struct Alarm: Equatable, Sendable {
         countdown = Countdown(total: .seconds(seconds), startingAt: now)
         return [
             .stopRinger, .withdrawAlert, .saveLastDuration(seconds: seconds), .keepAwake(true),
-            scheduleFire(),
+            fireEffect(),
         ]
     }
 
     /// Fires at the deadline while running; paused or ringing, there is nothing to fire.
-    private func scheduleFire() -> Effect {
+    private func fireEffect() -> Effect {
         guard let deadline = countdown?.deadline else { return .cancelFire }
         return .scheduleFire(at: deadline)
     }
