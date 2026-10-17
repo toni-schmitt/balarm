@@ -48,7 +48,8 @@ over, so `90` runs for 1 min 30 s.
 | `R`            |                            | restart (asks) | repeat  |
 
 After an alarm ends, its duration stays in the input (dimmed): Return starts it again,
-typing a digit replaces it. The last duration is remembered across launches.
+typing a digit replaces it, and Delete clears it at once. The last duration is remembered
+across launches.
 
 Closing the window quits Balarm and cancels a running alarm. While an alarm runs, the Mac
 does not go to sleep on its own; if it sleeps anyway (lid closed), the alarm rings right after
