@@ -1,4 +1,5 @@
 import AppKit
+import BalarmCore
 import SwiftUI
 
 @main
