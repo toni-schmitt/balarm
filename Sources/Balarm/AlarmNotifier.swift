@@ -11,7 +11,8 @@ final class AlarmNotifier: NSObject, UNUserNotificationCenterDelegate {
     var onRepeat: () -> Void = {}
 
     private let center = UNUserNotificationCenter.current()
-    private var isShowingAlert = false
+    /// From `post` until `withdraw`, whether or not the alert has reached the screen yet.
+    private var isAlertWanted = false
 
     private static let categoryID = "alarm"
     private static let requestID = "alarm.rang"
@@ -57,7 +58,7 @@ final class AlarmNotifier: NSObject, UNUserNotificationCenterDelegate {
         // sound would play on top of it.
         content.sound = nil
 
-        isShowingAlert = true
+        isAlertWanted = true
         let request = UNNotificationRequest(identifier: Self.requestID, content: content, trigger: nil)
         center.add(request) { [weak self] error in
             if let error {
@@ -69,14 +70,14 @@ final class AlarmNotifier: NSObject, UNUserNotificationCenterDelegate {
     }
 
     func withdraw() {
-        isShowingAlert = false
+        isAlertWanted = false
         removeAlert()
     }
 
     /// Adding the request is asynchronous, so an alarm stopped right at 0:00 is withdrawn
     /// before its alert exists; remove the alert again once the request has been added.
     private func withdrawIfStale() {
-        guard !isShowingAlert else { return }
+        guard !isAlertWanted else { return }
         removeAlert()
     }
 
