@@ -70,13 +70,20 @@ final class AlarmNotifier: NSObject, UNUserNotificationCenterDelegate {
 
     func withdraw() {
         isShowingAlert = false
-        center.removeDeliveredNotifications(withIdentifiers: [Self.requestID])
+        removeAlert()
     }
 
-    /// Delivery is asynchronous, so an alarm stopped right at 0:00 is withdrawn before its
-    /// alert arrives; remove the alert again once it has.
+    /// Adding the request is asynchronous, so an alarm stopped right at 0:00 is withdrawn
+    /// before its alert exists; remove the alert again once the request has been added.
     private func withdrawIfStale() {
         guard !isShowingAlert else { return }
+        removeAlert()
+    }
+
+    /// Removes the request whether it is still waiting to be shown or already on screen:
+    /// `add`'s completion does not say which of the two it is in.
+    private func removeAlert() {
+        center.removePendingNotificationRequests(withIdentifiers: [Self.requestID])
         center.removeDeliveredNotifications(withIdentifiers: [Self.requestID])
     }
 
