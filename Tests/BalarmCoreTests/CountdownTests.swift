@@ -62,6 +62,14 @@ import Testing
         #expect(countdown.isRinging)
     }
 
+    @Test func ringIgnoresAPausedCountdown() {
+        var countdown = Countdown(total: .seconds(60), startingAt: start)
+        countdown.pause(at: start + .seconds(20))
+        countdown.ring()
+        #expect(countdown.isPaused)
+        #expect(countdown.remaining(at: start + .seconds(500)) == .seconds(40))
+    }
+
     @Test func pauseKeepsFractionAndRoundsUp() {
         var countdown = Countdown(total: .seconds(60), startingAt: start)
         countdown.pause(at: start + .seconds(14.5))

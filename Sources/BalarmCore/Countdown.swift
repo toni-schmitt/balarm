@@ -78,7 +78,9 @@ public struct Countdown: Equatable, Sendable {
         phase = .running(deadline: now + remaining)
     }
 
+    /// Only a running countdown rings; a paused one still has time left.
     public mutating func ring() {
+        guard isRunning else { return }
         phase = .ringing
     }
 }
