@@ -2,7 +2,7 @@ import AVFoundation
 import AppKit
 import os
 
-private let log = Logger(subsystem: "com.toni.balarm", category: "Ringer")
+private let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Balarm", category: "Ringer")
 
 /// Loops Clock.app's default alarm tone, Radial, until stopped.
 ///

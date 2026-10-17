@@ -2,7 +2,7 @@ import AppKit
 import UserNotifications
 import os
 
-private let log = Logger(subsystem: "com.toni.balarm", category: "Notifications")
+private let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Balarm", category: "Notifications")
 
 /// Shows the "time's up" alert with Stop and Repeat, like Clock.app's timer alert.
 @MainActor

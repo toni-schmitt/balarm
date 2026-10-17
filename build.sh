@@ -16,7 +16,8 @@ esac
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 APP_NAME="Balarm"
-BUNDLE_ID="com.toni.balarm"
+# Info.plist is the one place the bundle ID is written down.
+BUNDLE_ID="$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" Support/Info.plist)"
 BUILD_DIR="build"
 APP_BUNDLE="$BUILD_DIR/$APP_NAME.app"
 ICON_PATH="$BUILD_DIR/AppIcon.icns"
