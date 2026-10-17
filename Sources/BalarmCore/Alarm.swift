@@ -29,7 +29,7 @@ public struct Alarm: Equatable, Sendable {
     /// `nil` while a duration is being typed.
     public private(set) var countdown: Countdown?
     /// R asks before throwing away a countdown in progress; ringing repeats without asking.
-    public var isConfirmingRestart = false
+    public private(set) var isConfirmingRestart = false
 
     public init(lastDurationSeconds: Int) {
         entry = DurationEntry(prefilling: lastDurationSeconds) ?? DurationEntry()
@@ -96,6 +96,11 @@ public struct Alarm: Equatable, Sendable {
     public mutating func repeatAlarm(at now: ContinuousClock.Instant) -> [Effect] {
         guard let countdown else { return [] }
         return start(seconds: countdown.totalSeconds, at: now)
+    }
+
+    /// Closes the restart prompt without restarting; the countdown carries on.
+    public mutating func dismissRestartPrompt() {
+        isConfirmingRestart = false
     }
 
     /// Notification actions can arrive for an alert that is already stale,

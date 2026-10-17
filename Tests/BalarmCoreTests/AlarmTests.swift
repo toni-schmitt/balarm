@@ -158,6 +158,15 @@ import Testing
         #expect(alarm.countdown?.deadline == now + .seconds(60))
     }
 
+    @Test func dismissingThePromptKeepsTheCountdownGoing() {
+        var alarm = running(seconds: 60)
+        _ = alarm.handle(.repeatAlarm, at: start)
+        alarm.dismissRestartPrompt()
+        #expect(!alarm.isConfirmingRestart)
+        #expect(alarm == running(seconds: 60))
+        #expect(alarm.handle(.space, at: start + .seconds(10)) != nil)
+    }
+
     @Test func ringingClosesTheRestartPrompt() {
         var alarm = running(seconds: 60)
         _ = alarm.handle(.repeatAlarm, at: start)

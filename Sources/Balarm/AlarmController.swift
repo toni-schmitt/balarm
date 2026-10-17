@@ -13,7 +13,11 @@ final class AlarmController {
     var countdown: Countdown? { alarm.countdown }
     var isConfirmingRestart: Bool {
         get { alarm.isConfirmingRestart }
-        set { alarm.isConfirmingRestart = newValue }
+        // Only R opens the prompt; the alert's binding writes here only to close it.
+        set {
+            guard !newValue else { return }
+            alarm.dismissRestartPrompt()
+        }
     }
 
     @ObservationIgnored private let ringer = Ringer()
