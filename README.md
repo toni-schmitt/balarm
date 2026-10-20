@@ -67,8 +67,11 @@ waking.
 
 ## Notifications
 
-On first launch macOS asks whether Balarm may send notifications. Balarm asks for the
-persistent **Alerts** style, which you can change in System Settings › Notifications › Balarm.
+On first launch macOS asks whether Balarm may send notifications. For the alarm's alert to
+stay on screen until the alarm is stopped, set Balarm's alert style to **Persistent** in System
+Settings › Notifications › Balarm: macOS gives Balarm temporary alerts at first and lets only
+you change that. While the alerts are temporary or turned off, Balarm shows a note with a
+button that opens Notification settings.
 
 Closing the alert with its ✕, or clearing it in Notification Center, stops the alarm like
 **Stop**. With persistent alerts, swiping it away does too, about a second after a trackpad

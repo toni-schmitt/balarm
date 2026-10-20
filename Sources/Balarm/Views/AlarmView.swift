@@ -8,7 +8,7 @@ struct AlarmView: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        Group {
+        VStack(spacing: 0) {
             if let countdown = controller.countdown {
                 CountdownView(countdown: countdown, controller: controller)
             } else {
@@ -17,6 +17,12 @@ struct AlarmView: View {
                     onStart: controller.startFromEntry,
                     onEdit: controller.setEntry
                 )
+            }
+            if let hint = AlertStyleHint(
+                style: controller.alertStyle,
+                onOpenSettings: controller.followAlertStyleChanges
+            ) {
+                hint.padding(.bottom, 20)
             }
         }
         .onAppear {

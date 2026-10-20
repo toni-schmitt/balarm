@@ -1,5 +1,43 @@
 import UserNotifications
 
+/// How macOS shows Balarm's alerts, which only the user can choose.
+enum AlarmAlertStyle {
+    /// Not asked yet: the first launch asks before any alert can show.
+    case notAsked
+    /// Stays on screen until acted on, which the alarm's alert needs.
+    case persistent
+    /// Leaves the screen after a few seconds while the alarm rings on.
+    case temporary
+    /// No alert shows; the tone still rings.
+    case off
+
+    init(
+        authorizationStatus: UNAuthorizationStatus,
+        alertSetting: UNNotificationSetting,
+        alertStyle: UNAlertStyle
+    ) {
+        guard authorizationStatus != .notDetermined else {
+            self = .notAsked
+            return
+        }
+        // Provisional authorization only delivers quietly to Notification Center.
+        guard authorizationStatus == .authorized else {
+            self = .off
+            return
+        }
+        guard alertSetting == .enabled else {
+            self = .off
+            return
+        }
+        switch alertStyle {
+        case .alert: self = .persistent
+        case .banner: self = .temporary
+        case .none: self = .off
+        @unknown default: self = .off
+        }
+    }
+}
+
 /// The `UNUserNotificationCenter` calls that `AlarmNotifier` makes, behind a protocol so
 /// tests can decide when `add` completes: a late completion is what leaves a stale alert.
 @MainActor
@@ -10,9 +48,7 @@ protocol AlarmNotificationDelivery {
     )
     func removePending(_ identifiers: [String])
     func removeDelivered(_ identifiers: [String])
-    /// Whether Balarm's alerts are allowed and stay on screen until acted on, a style only
-    /// the user can choose.
-    func showsPersistentAlerts() async -> Bool
+    func alertStyle() async -> AlarmAlertStyle
 }
 
 @MainActor
@@ -36,10 +72,12 @@ struct SystemAlarmNotificationDelivery: AlarmNotificationDelivery {
         center.removeDeliveredNotifications(withIdentifiers: identifiers)
     }
 
-    func showsPersistentAlerts() async -> Bool {
+    func alertStyle() async -> AlarmAlertStyle {
         let settings = await center.notificationSettings()
-        guard settings.authorizationStatus == .authorized else { return false }
-        guard settings.alertSetting == .enabled else { return false }
-        return settings.alertStyle == .alert
+        return AlarmAlertStyle(
+            authorizationStatus: settings.authorizationStatus,
+            alertSetting: settings.alertSetting,
+            alertStyle: settings.alertStyle
+        )
     }
 }

@@ -99,7 +99,7 @@ import UserNotifications
     // MARK: - Swiping the alert away
 
     @Test func aSwipeStopsTheAlarm() async throws {
-        let notificationDelivery = DeferredAlarmNotificationDelivery(isPersistent: true)
+        let notificationDelivery = DeferredAlarmNotificationDelivery(style: .persistent)
         let alertScreen = ScriptedAlertScreen()
         let notifier = AlarmNotifier(notificationDelivery: notificationDelivery, alertScreen: alertScreen, timing: .fast)
         var stops = 0
@@ -116,7 +116,7 @@ import UserNotifications
     }
 
     @Test func withTemporaryAlertsASwipeIsNotWatched() async throws {
-        let notificationDelivery = DeferredAlarmNotificationDelivery(isPersistent: false)
+        let notificationDelivery = DeferredAlarmNotificationDelivery(style: .temporary)
         let alertScreen = ScriptedAlertScreen()
         let notifier = AlarmNotifier(notificationDelivery: notificationDelivery, alertScreen: alertScreen, timing: .fast)
         var stops = 0
@@ -132,7 +132,7 @@ import UserNotifications
     }
 
     @Test func aWithdrawnAlertsWatchCannotStopTheAlarm() async throws {
-        let notificationDelivery = DeferredAlarmNotificationDelivery(isPersistent: true)
+        let notificationDelivery = DeferredAlarmNotificationDelivery(style: .persistent)
         let alertScreen = ScriptedAlertScreen()
         let notifier = AlarmNotifier(notificationDelivery: notificationDelivery, alertScreen: alertScreen, timing: .fast)
         var stops = 0
@@ -148,7 +148,7 @@ import UserNotifications
     }
 
     @Test func aFailedAlertIsNotWatched() async throws {
-        let notificationDelivery = DeferredAlarmNotificationDelivery(isPersistent: true)
+        let notificationDelivery = DeferredAlarmNotificationDelivery(style: .persistent)
         let alertScreen = ScriptedAlertScreen()
         let notifier = AlarmNotifier(notificationDelivery: notificationDelivery, alertScreen: alertScreen, timing: .fast)
         var stops = 0
@@ -165,7 +165,7 @@ import UserNotifications
     }
 
     @Test func switchingToTemporaryAlertsBeforeTheSwipeCountsKeepsItRinging() async throws {
-        let notificationDelivery = DeferredAlarmNotificationDelivery(isPersistent: true)
+        let notificationDelivery = DeferredAlarmNotificationDelivery(style: .persistent)
         let alertScreen = ScriptedAlertScreen()
         let notifier = AlarmNotifier(notificationDelivery: notificationDelivery, alertScreen: alertScreen, timing: .fast)
         var stops = 0
@@ -174,7 +174,7 @@ import UserNotifications
 
         alertScreen.showOverlay()
         await waitUntil { alertScreen.samplesWithOverlay > 0 }
-        notificationDelivery.isPersistent = false
+        notificationDelivery.style = .temporary
         alertScreen.swipeOverlayAway()
         try await Task.sleep(for: .milliseconds(200))
         #expect(stops == 0)
@@ -205,7 +205,7 @@ import UserNotifications
     }
 
     @Test func theOverlayLeavingOnAClickIsNoSwipe() async throws {
-        let notificationDelivery = DeferredAlarmNotificationDelivery(isPersistent: true)
+        let notificationDelivery = DeferredAlarmNotificationDelivery(style: .persistent)
         let alertScreen = ScriptedAlertScreen()
         // Showing the alert again takes longer than a swipe needs to be reported.
         var timing = AlarmNotifier.Timing.fast
@@ -227,7 +227,7 @@ import UserNotifications
     }
 
     @Test func theAlertShownAgainIsWatchedForASwipe() async throws {
-        let notificationDelivery = DeferredAlarmNotificationDelivery(isPersistent: true)
+        let notificationDelivery = DeferredAlarmNotificationDelivery(style: .persistent)
         let alertScreen = ScriptedAlertScreen()
         let notifier = AlarmNotifier(notificationDelivery: notificationDelivery, alertScreen: alertScreen, timing: .fast)
         var stops = 0
@@ -331,14 +331,14 @@ private final class ScriptedAlertScreen: AlertScreen {
 
 @MainActor
 private final class DeferredAlarmNotificationDelivery: AlarmNotificationDelivery {
-    var isPersistent: Bool
+    var style: AlarmAlertStyle
     var requests: [UNNotificationRequest] = []
     var completions: [@MainActor @Sendable ((any Error)?) -> Void] = []
     var removedPending: [String] = []
     var removedDelivered: [String] = []
 
-    init(isPersistent: Bool = false) {
-        self.isPersistent = isPersistent
+    init(style: AlarmAlertStyle = .temporary) {
+        self.style = style
     }
 
     func add(
@@ -352,7 +352,7 @@ private final class DeferredAlarmNotificationDelivery: AlarmNotificationDelivery
     func complete(at index: Int, error: (any Error)? = nil) { completions[index](error) }
     func removePending(_ identifiers: [String]) { removedPending += identifiers }
     func removeDelivered(_ identifiers: [String]) { removedDelivered += identifiers }
-    func showsPersistentAlerts() async -> Bool { isPersistent }
+    func alertStyle() async -> AlarmAlertStyle { style }
 
     func clearRemovals() {
         removedPending = []

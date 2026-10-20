@@ -11,6 +11,7 @@ final class AlarmController {
 
     var entry: DurationEntry { alarm.entry }
     var countdown: Countdown? { alarm.countdown }
+    private(set) var alertStyle = AlarmAlertStyle.notAsked
     var isConfirmingRestart: Bool {
         get { alarm.isConfirmingRestart }
         // `requestRestart()` opens the prompt; the alert's binding writes here only to close it.
@@ -29,6 +30,16 @@ final class AlarmController {
     @ObservationIgnored private var fireTask: Task<Void, Never>?
     @ObservationIgnored private var keepAwakeActivity: (any NSObjectProtocol)?
     @ObservationIgnored private var wakeObserver: (any NSObjectProtocol)?
+    @ObservationIgnored private var activationObserver: (any NSObjectProtocol)?
+    @ObservationIgnored private var alertStyleFollowTask: Task<Void, Never>?
+    /// Reads of the style overlap; only one started after the last applied may replace it.
+    @ObservationIgnored private var lastStartedAlertStyleRead = 0
+    @ObservationIgnored private var lastAppliedAlertStyleRead = 0
+
+    /// System Settings does not tell Balarm when its alert style changes there, and Balarm
+    /// stays in the background meanwhile, so after opening it the style is read every second
+    /// for this many seconds.
+    private static let alertStyleFollowSeconds = 120
 
     private static let lastDurationKey = "lastDurationSeconds"
 
@@ -44,7 +55,16 @@ final class AlarmController {
             perform(alarm.handleAlertAction(.repeatAlarm, at: .now))
         }
         notifier.onOpen = { [weak self] in self?.showWindow() }
+        notifier.onAuthorizationResolved = { [weak self] in self?.refreshAlertStyle() }
         notifier.activate()
+        refreshAlertStyle()
+
+        // The style can only be changed in System Settings, so it is read again on return.
+        activationObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.refreshAlertStyle() }
+        }
 
         // Idle sleep is prevented while running, but closing the lid still sleeps the Mac.
         // The fire task may then resume late, so wake-up checks the deadline directly.
@@ -89,6 +109,33 @@ final class AlarmController {
 
     func repeatAlarm() {
         perform(alarm.repeatAlarm(at: .now))
+    }
+
+    /// Called when the user opens Notification settings to change the alert style.
+    func followAlertStyleChanges() {
+        alertStyleFollowTask?.cancel()
+        alertStyleFollowTask = Task { [weak self] in
+            for _ in 0..<Self.alertStyleFollowSeconds {
+                try? await Task.sleep(for: .seconds(1))
+                guard !Task.isCancelled else { return }
+                guard let self else { return }
+                await readAlertStyle()
+                guard alertStyle != .persistent else { return }
+            }
+        }
+    }
+
+    private func refreshAlertStyle() {
+        Task { [weak self] in await self?.readAlertStyle() }
+    }
+
+    private func readAlertStyle() async {
+        lastStartedAlertStyleRead += 1
+        let read = lastStartedAlertStyleRead
+        let style = await notifier.alertStyle()
+        guard read > lastAppliedAlertStyleRead else { return }
+        lastAppliedAlertStyleRead = read
+        alertStyle = style
     }
 
     private func ringIfDue() {

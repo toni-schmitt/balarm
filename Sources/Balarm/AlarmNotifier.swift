@@ -10,6 +10,9 @@ final class AlarmNotifier: NSObject, UNUserNotificationCenterDelegate {
     var onStop: () -> Void = {}
     var onRepeat: () -> Void = {}
     var onOpen: () -> Void = {}
+    /// Called when asking whether Balarm may notify has finished, whether answered now, on an
+    /// earlier launch, or failed, since the alert style may have changed.
+    var onAuthorizationResolved: () -> Void = {}
 
     /// The alert of the ringing alarm.
     private struct CurrentAlert {
@@ -80,7 +83,12 @@ final class AlarmNotifier: NSObject, UNUserNotificationCenterDelegate {
             } catch {
                 log.error("Notification authorization failed: \(error.localizedDescription, privacy: .public)")
             }
+            onAuthorizationResolved()
         }
+    }
+
+    func alertStyle() async -> AlarmAlertStyle {
+        await notificationDelivery.alertStyle()
     }
 
     func post(body: String) {
@@ -139,7 +147,7 @@ final class AlarmNotifier: NSObject, UNUserNotificationCenterDelegate {
     private func watchForSwipe(of requestID: String, with detector: AlertSwipeDetector) {
         swipeWatchTask?.cancel()
         swipeWatchTask = Task { [weak self, notificationDelivery, alertScreen, timing] in
-            guard await notificationDelivery.showsPersistentAlerts() else { return }
+            guard await notificationDelivery.alertStyle() == .persistent else { return }
             var detector = detector
             while !Task.isCancelled {
                 guard self != nil else { return }
@@ -151,7 +159,7 @@ final class AlarmNotifier: NSObject, UNUserNotificationCenterDelegate {
                 case .swiped:
                     // The style may have changed during the ring; a temporary banner leaves
                     // by itself.
-                    guard await notificationDelivery.showsPersistentAlerts() else { return }
+                    guard await notificationDelivery.alertStyle() == .persistent else { return }
                     guard !Task.isCancelled else { return }
                     self?.alertWasSwiped(requestID)
                     return
