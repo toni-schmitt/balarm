@@ -80,6 +80,9 @@ struct CountdownView: View {
             Button("Cancel", systemImage: "xmark", action: controller.stop)
                 .buttonStyle(.glass)
                 .help("Cancel (Esc)")
+            Button("Restart", systemImage: "arrow.clockwise", action: controller.requestRestart)
+                .buttonStyle(.glass)
+                .help("Restart (R)")
             Button(
                 countdown.isPaused ? "Resume" : "Pause",
                 systemImage: countdown.isPaused ? "play.fill" : "pause.fill",

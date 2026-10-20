@@ -13,7 +13,7 @@ final class AlarmController {
     var countdown: Countdown? { alarm.countdown }
     var isConfirmingRestart: Bool {
         get { alarm.isConfirmingRestart }
-        // Only R opens the prompt; the alert's binding writes here only to close it.
+        // `requestRestart()` opens the prompt; the alert's binding writes here only to close it.
         set {
             guard !newValue else { return }
             alarm.dismissRestartPrompt()
@@ -63,6 +63,10 @@ final class AlarmController {
 
     func setEntry(_ entry: DurationEntry) {
         alarm.setEntry(entry)
+    }
+
+    func requestRestart() {
+        alarm.requestRestart()
     }
 
     func togglePause() {

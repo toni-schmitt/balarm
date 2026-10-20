@@ -21,7 +21,7 @@ struct AlarmScreen<DialContent: View, Buttons: View>: View {
             dial
                 .frame(width: ringDiameter, height: ringDiameter)
 
-            HStack(spacing: 44) {
+            HStack(spacing: 24) {
                 buttons
             }
             .labelStyle(.iconOnly)

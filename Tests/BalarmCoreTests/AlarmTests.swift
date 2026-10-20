@@ -170,6 +170,29 @@ import Testing
         #expect(alarm.countdown?.isRunning == true)
     }
 
+    @Test func aRestartRequestAsksForARunningOrPausedCountdown() {
+        var alarm = running(seconds: 60)
+        alarm.requestRestart()
+        #expect(alarm.isConfirmingRestart)
+
+        var pausedAlarm = paused(seconds: 60, after: .seconds(10))
+        pausedAlarm.requestRestart()
+        #expect(pausedAlarm.isConfirmingRestart)
+        #expect(pausedAlarm.countdown?.isPaused == true)
+    }
+
+    @Test func aRestartRequestWhileRingingDoesNothing() {
+        var alarm = ringing(seconds: 60)
+        alarm.requestRestart()
+        #expect(alarm == ringing(seconds: 60))
+    }
+
+    @Test func aRestartRequestWithoutACountdownDoesNothing() {
+        var alarm = typing(5)
+        alarm.requestRestart()
+        #expect(alarm == typing(5))
+    }
+
     @Test(arguments: [AlarmKey.enter, .escape, .space, .repeatAlarm, .digit(1), .delete])
     func theRestartPromptGetsEveryKey(key: AlarmKey) {
         var alarm = running(seconds: 60)

@@ -39,6 +39,7 @@ over, so `90` runs for 1 min 30 s.
 
 Click the duration display to edit labeled Hours, Minutes, and Seconds fields, which also
 work with VoiceOver and Voice Control. Save applies the duration; Return or Start then starts it.
+While running or paused, the Restart button starts over after confirmation, just like `R`.
 
 | You type | Display    | Runs for      |
 | -------- | ---------- | ------------- |

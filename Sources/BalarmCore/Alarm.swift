@@ -28,7 +28,7 @@ public struct Alarm: Equatable, Sendable {
     public private(set) var entry: DurationEntry
     /// `nil` while a duration is being typed.
     public private(set) var countdown: Countdown?
-    /// R asks before throwing away a countdown in progress; ringing repeats without asking.
+    /// Restart asks before throwing away a countdown in progress; ringing repeats without asking.
     public private(set) var isConfirmingRestart = false
 
     public init(lastDurationSeconds: Int) {
@@ -54,10 +54,18 @@ public struct Alarm: Equatable, Sendable {
         switch key {
         case .space: return togglePause(at: now)
         case .escape: return stop()
-        case .repeatAlarm: isConfirmingRestart = true
+        case .repeatAlarm: requestRestart()
         default: return nil
         }
         return []
+    }
+
+    /// Opens the restart prompt for a running or paused countdown. A ringing alarm has its
+    /// own Repeat, which needs no confirmation, so asking to restart it does nothing.
+    public mutating func requestRestart() {
+        guard let countdown else { return }
+        guard !countdown.isRinging else { return }
+        isConfirmingRestart = true
     }
 
     public mutating func startFromEntry(at now: ContinuousClock.Instant) -> [Effect] {
