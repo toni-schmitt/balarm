@@ -15,6 +15,17 @@ public struct DurationEntry: Hashable, Sendable {
 
     public init() {}
 
+    /// The entry that typing each field's two digits in turn gives, so a field above 59
+    /// overflows exactly as typed digits do: `minutes: 90` runs for 1 h 30 min. Each field
+    /// must be within 0...99, otherwise `nil`; all zeros give an empty entry.
+    public init?(hours: Int, minutes: Int, seconds: Int) {
+        guard [hours, minutes, seconds].allSatisfy({ (0...99).contains($0) }) else { return nil }
+        for field in [hours, minutes, seconds] {
+            append(field / 10)
+            append(field % 10)
+        }
+    }
+
     /// Shows `seconds` as a remembered duration, normalized to `hh:mm:ss`.
     ///
     /// Typing can overflow every field, up to 99:99:99. Beyond 99:59:59 the hours stay at 99

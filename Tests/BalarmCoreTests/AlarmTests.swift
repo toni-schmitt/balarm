@@ -91,6 +91,36 @@ import Testing
         #expect(alarm.handle(.enter, at: start) == startEffects(seconds: 90, at: start))
     }
 
+    // MARK: - Editing the duration
+
+    @Test func anEditReplacesTheRememberedDuration() throws {
+        var alarm = Alarm(lastDurationSeconds: 25 * 60)
+        let entry = try #require(DurationEntry(hours: 0, minutes: 5, seconds: 30))
+        alarm.setEntry(entry)
+        #expect(alarm.entry == entry)
+        #expect(alarm.startFromEntry(at: start) == startEffects(seconds: 330, at: start))
+    }
+
+    @Test func anUnchangedEditKeepsTheDurationRemembered() throws {
+        var alarm = Alarm(lastDurationSeconds: 25 * 60)
+        alarm.setEntry(try #require(DurationEntry(hours: 0, minutes: 25, seconds: 0)))
+        #expect(alarm.entry.isPrefilled)
+        #expect(alarm == Alarm(lastDurationSeconds: 25 * 60))
+    }
+
+    @Test func anEditWithTheSameTotalIsApplied() throws {
+        var alarm = Alarm(lastDurationSeconds: 90)
+        let entry = try #require(DurationEntry(hours: 0, minutes: 0, seconds: 90))
+        alarm.setEntry(entry)
+        #expect(alarm.entry == entry)
+    }
+
+    @Test func anEditWhileACountdownExistsIsIgnored() {
+        var alarm = running(seconds: 60)
+        alarm.setEntry(DurationEntry())
+        #expect(alarm == running(seconds: 60))
+    }
+
     // MARK: - Running and paused
 
     @Test func spacePausesAndResumes() {

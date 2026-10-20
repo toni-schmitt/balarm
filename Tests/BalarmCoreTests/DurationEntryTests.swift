@@ -123,4 +123,22 @@ import Testing
         #expect(entry.isEmpty)
         #expect(!entry.isPrefilled)
     }
+
+    @Test func explicitFieldsMatchTypingTheSameDigits() throws {
+        let entry = try #require(DurationEntry(hours: 1, minutes: 90, seconds: 99))
+        #expect(entry == self.entry(typing: 0, 1, 9, 0, 9, 9))
+        #expect(entry.totalSeconds == 3600 + 90 * 60 + 99)
+        #expect(DurationEntry(hours: 99, minutes: 99, seconds: 99) == self.entry(typing: 9, 9, 9, 9, 9, 9))
+    }
+
+    @Test func explicitZeroFieldsGiveAnEmptyEntry() throws {
+        #expect(try #require(DurationEntry(hours: 0, minutes: 0, seconds: 0)).isEmpty)
+    }
+
+    @Test(arguments: [-1, 100, Int.max])
+    func explicitFieldsRejectOutOfRangeValues(value: Int) {
+        #expect(DurationEntry(hours: value, minutes: 0, seconds: 0) == nil)
+        #expect(DurationEntry(hours: 0, minutes: value, seconds: 0) == nil)
+        #expect(DurationEntry(hours: 0, minutes: 0, seconds: value) == nil)
+    }
 }

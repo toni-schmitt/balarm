@@ -65,6 +65,18 @@ public struct Alarm: Equatable, Sendable {
         return start(seconds: entry.totalSeconds, at: now)
     }
 
+    /// Ignored while a countdown exists: `stop()` replaces the entry with the countdown's
+    /// duration, so the edit would be silently lost.
+    ///
+    /// Also ignored when the digits are unchanged, so saving the editor as it was keeps a
+    /// remembered duration remembered and the next digit still replaces it. The digits, not
+    /// the total: `00:00:90` and `00:01:30` run equally long but are different edits.
+    public mutating func setEntry(_ entry: DurationEntry) {
+        guard countdown == nil else { return }
+        guard entry.digits != self.entry.digits else { return }
+        self.entry = entry
+    }
+
     public mutating func togglePause(at now: ContinuousClock.Instant) -> [Effect] {
         guard var countdown else { return [] }
         guard !countdown.isRinging else { return [] }
