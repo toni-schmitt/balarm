@@ -10,16 +10,21 @@ final class AlarmNotifier: NSObject, UNUserNotificationCenterDelegate {
     var onStop: () -> Void = {}
     var onRepeat: () -> Void = {}
 
-    private let center = UNUserNotificationCenter.current()
-    /// From `post` until `withdraw`, whether or not the alert has reached the screen yet.
-    private var isAlertWanted = false
+    private let notificationDelivery: any AlarmNotificationDelivery
+    /// Only this notification may present or act on the current alarm.
+    private var currentRequestID: String?
 
     private static let categoryID = "alarm"
-    private static let requestID = "alarm.rang"
-    private static let stopActionID = "stop"
-    private static let repeatActionID = "repeat"
+    nonisolated static let stopActionID = "stop"
+    nonisolated static let repeatActionID = "repeat"
+
+    init(notificationDelivery: any AlarmNotificationDelivery = SystemAlarmNotificationDelivery()) {
+        self.notificationDelivery = notificationDelivery
+        super.init()
+    }
 
     func activate() {
+        let center = UNUserNotificationCenter.current()
         center.delegate = self
         // Quitting while ringing can leave an alert behind whose Stop and Repeat no longer
         // have an alarm to act on.
@@ -50,6 +55,7 @@ final class AlarmNotifier: NSObject, UNUserNotificationCenterDelegate {
     }
 
     func post(body: String) {
+        withdraw()
         let content = UNMutableNotificationContent()
         content.title = "Alarm"
         content.body = body
@@ -58,42 +64,64 @@ final class AlarmNotifier: NSObject, UNUserNotificationCenterDelegate {
         // sound would play on top of it.
         content.sound = nil
 
-        isAlertWanted = true
-        let request = UNNotificationRequest(identifier: Self.requestID, content: content, trigger: nil)
-        center.add(request) { [weak self] error in
+        let requestID = "alarm.rang.\(UUID().uuidString)"
+        currentRequestID = requestID
+        let request = UNNotificationRequest(identifier: requestID, content: content, trigger: nil)
+        notificationDelivery.add(request) { [weak self] error in
             if let error {
                 log.error("Cannot show the alarm notification: \(error.localizedDescription, privacy: .public)")
                 return
             }
-            Task { @MainActor in self?.withdrawIfStale() }
+            self?.withdrawIfStale(requestID)
         }
     }
 
     func withdraw() {
-        isAlertWanted = false
-        removeAlert()
+        guard let requestID = currentRequestID else { return }
+        currentRequestID = nil
+        removeAlert(requestID)
     }
 
     /// Adding the request is asynchronous, so an alarm stopped right at 0:00 is withdrawn
     /// before its alert exists; remove the alert again once the request has been added.
-    private func withdrawIfStale() {
-        guard !isAlertWanted else { return }
-        removeAlert()
+    private func withdrawIfStale(_ requestID: String) {
+        guard currentRequestID != requestID else { return }
+        removeAlert(requestID)
     }
 
     /// Removes the request whether it is still waiting to be shown or already on screen:
     /// `add`'s completion does not say which of the two it is in.
-    private func removeAlert() {
-        center.removePendingNotificationRequests(withIdentifiers: [Self.requestID])
-        center.removeDeliveredNotifications(withIdentifiers: [Self.requestID])
+    private func removeAlert(_ requestID: String) {
+        notificationDelivery.removePending([requestID])
+        notificationDelivery.removeDelivered([requestID])
+    }
+
+    func presentationOptions(for requestID: String) -> UNNotificationPresentationOptions {
+        // A withdrawn request may still reach the delegate while add is in flight.
+        guard currentRequestID == requestID else { return [] }
+        // Shown even while Balarm is frontmost, since the alert carries the Stop/Repeat actions.
+        return [.banner, .list]
+    }
+
+    func handleResponse(actionID: String, requestID: String) {
+        guard currentRequestID == requestID else { return }
+        switch actionID {
+        case Self.stopActionID, UNNotificationDismissActionIdentifier:
+            withdraw()
+            onStop()
+        case Self.repeatActionID:
+            withdraw()
+            onRepeat()
+        default:
+            NSApp.activate()
+        }
     }
 
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
-        // Shown even while Balarm is frontmost, since the alert carries the Stop/Repeat actions.
-        [.banner, .list]
+        await presentationOptions(for: notification.request.identifier)
     }
 
     nonisolated func userNotificationCenter(
@@ -101,15 +129,9 @@ final class AlarmNotifier: NSObject, UNUserNotificationCenterDelegate {
         didReceive response: UNNotificationResponse
     ) async {
         let actionID = response.actionIdentifier
+        let requestID = response.notification.request.identifier
         await MainActor.run {
-            switch actionID {
-            case Self.stopActionID, UNNotificationDismissActionIdentifier:
-                onStop()
-            case Self.repeatActionID:
-                onRepeat()
-            default:
-                NSApp.activate()
-            }
+            handleResponse(actionID: actionID, requestID: requestID)
         }
     }
 }
