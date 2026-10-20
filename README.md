@@ -23,6 +23,12 @@ With only the Command Line Tools installed, `swift test` intermittently fails wi
 module 'TestingMacros' not found", mostly after a debug `swift build`. Running it again clears
 it, occasionally only on the second or third try.
 
+If retries do not help with Command Line Tools, explicitly provide its Testing plugin path:
+
+```sh
+swift test -Xswiftc -plugin-path -Xswiftc "$(xcode-select -p)/usr/lib/swift/host/plugins/testing"
+```
+
 `build.sh` copies the Radial tone from the system's ToneLibrary into the app bundle, so the
 repository contains no Apple audio. The app is ad-hoc signed.
 
