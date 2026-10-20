@@ -6,7 +6,7 @@ struct BalarmApp: App {
     @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
 
     var body: some Scene {
-        Window("Balarm", id: "main") {
+        Window("Balarm", id: AlarmView.windowID) {
             AlarmView(controller: appDelegate.controller)
                 .background(AlarmKeyboard(onKey: appDelegate.controller.handle))
                 .containerBackground(.thinMaterial, for: .window)

@@ -10,6 +10,9 @@ protocol AlarmNotificationDelivery {
     )
     func removePending(_ identifiers: [String])
     func removeDelivered(_ identifiers: [String])
+    /// Whether Balarm's alerts are allowed and stay on screen until acted on, a style only
+    /// the user can choose.
+    func showsPersistentAlerts() async -> Bool
 }
 
 @MainActor
@@ -31,5 +34,12 @@ struct SystemAlarmNotificationDelivery: AlarmNotificationDelivery {
 
     func removeDelivered(_ identifiers: [String]) {
         center.removeDeliveredNotifications(withIdentifiers: identifiers)
+    }
+
+    func showsPersistentAlerts() async -> Bool {
+        let settings = await center.notificationSettings()
+        guard settings.authorizationStatus == .authorized else { return false }
+        guard settings.alertSetting == .enabled else { return false }
+        return settings.alertStyle == .alert
     }
 }

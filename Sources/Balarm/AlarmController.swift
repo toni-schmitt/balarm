@@ -20,6 +20,10 @@ final class AlarmController {
         }
     }
 
+    /// Opens the alarm window or brings it forward, also out of the Dock. The window provides
+    /// it, since the action that does so comes from its SwiftUI environment.
+    @ObservationIgnored var openWindow: () -> Void = {}
+
     @ObservationIgnored private let ringer = Ringer()
     @ObservationIgnored private let notifier = AlarmNotifier()
     @ObservationIgnored private var fireTask: Task<Void, Never>?
@@ -39,6 +43,7 @@ final class AlarmController {
             guard let self else { return }
             perform(alarm.handleAlertAction(.repeatAlarm, at: .now))
         }
+        notifier.onOpen = { [weak self] in self?.showWindow() }
         notifier.activate()
 
         // Idle sleep is prevented while running, but closing the lid still sleeps the Mac.
@@ -67,6 +72,11 @@ final class AlarmController {
 
     func requestRestart() {
         alarm.requestRestart()
+    }
+
+    func showWindow() {
+        NSApp.activate()
+        openWindow()
     }
 
     func togglePause() {

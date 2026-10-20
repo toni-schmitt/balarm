@@ -2,7 +2,10 @@ import BalarmCore
 import SwiftUI
 
 struct AlarmView: View {
+    static let windowID = "main"
+
     @Bindable var controller: AlarmController
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         Group {
@@ -15,6 +18,10 @@ struct AlarmView: View {
                     onEdit: controller.setEntry
                 )
             }
+        }
+        .onAppear {
+            let openAlarmWindow = openWindow
+            controller.openWindow = { openAlarmWindow(id: Self.windowID) }
         }
         .alert("Restart the alarm?", isPresented: $controller.isConfirmingRestart) {
             Button("Restart", action: controller.repeatAlarm)
