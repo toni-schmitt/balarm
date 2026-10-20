@@ -37,6 +37,9 @@ repository contains no Apple audio. The app is ad-hoc signed.
 Digits fill `hh:mm:ss` from the right, like a microwave. A field may overflow and carries
 over, so `90` runs for 1 min 30 s.
 
+Click the duration display to edit labeled Hours, Minutes, and Seconds fields, which also
+work with VoiceOver and Voice Control. Save applies the duration; Return or Start then starts it.
+
 | You type | Display    | Runs for      |
 | -------- | ---------- | ------------- |
 | `5`      | `00:00:05` | 5 s           |

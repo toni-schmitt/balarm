@@ -4,6 +4,8 @@ import SwiftUI
 struct EntryView: View {
     let entry: DurationEntry
     let onStart: () -> Void
+    let onEdit: (DurationEntry) -> Void
+    @ViewState private var isEditing = false
 
     var body: some View {
         AlarmScreen(
@@ -12,7 +14,14 @@ struct EntryView: View {
         ) {
             Dial(ring: ProgressRing(fraction: 0)) {
                 VStack(spacing: 8) {
-                    EntryDigits(entry: entry)
+                    Button { isEditing = true } label: {
+                        EntryDigits(entry: entry)
+                    }
+                    .buttonStyle(.plain)
+                    // Also read as the accessibility hint, so it adds to the label rather than repeating it.
+                    .help("Edit hours, minutes and seconds")
+                    .accessibilityLabel("Edit duration")
+                    .accessibilityValue(spokenDuration)
                     Text("⏎ to start")
                         .font(.callout)
                         .foregroundStyle(.tertiary)
@@ -25,6 +34,13 @@ struct EntryView: View {
                 .disabled(entry.totalSeconds == 0)
                 .help("Start (⏎)")
         }
+        .sheet(isPresented: $isEditing) {
+            DurationEditor(entry: entry, onSave: onEdit)
+        }
+    }
+
+    private var spokenDuration: String {
+        entry.totalSeconds > 0 ? DurationText.words(seconds: entry.totalSeconds) : "No duration"
     }
 }
 
@@ -63,8 +79,6 @@ private struct EntryDigits: View {
         .font(.system(size: digitFontSize, weight: .light).monospacedDigit())
         .lineLimit(1)
         .animation(.snappy(duration: 0.12), value: entry)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(entry.totalSeconds > 0 ? DurationText.words(seconds: entry.totalSeconds) : "No duration")
     }
 
     private func style(isPadding: Bool) -> HierarchicalShapeStyle {

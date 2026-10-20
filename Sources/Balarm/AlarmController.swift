@@ -61,6 +61,10 @@ final class AlarmController {
         perform(alarm.startFromEntry(at: .now))
     }
 
+    func setEntry(_ entry: DurationEntry) {
+        alarm.setEntry(entry)
+    }
+
     func togglePause() {
         perform(alarm.togglePause(at: .now))
     }

@@ -4,8 +4,9 @@ import SwiftUI
 
 /// A key monitor instead of SwiftUI focus: typing must work the moment the window appears,
 /// without first clicking into it. It handles only keys aimed at the alarm window, so the
-/// restart prompt, a sheet with a window of its own, keeps its keys; holding Return, Esc,
-/// Space or R is ignored after the first press in every window.
+/// restart prompt and the duration editor, which are sheets with windows of their own,
+/// keep their keys; holding Return, Esc, Space or R is ignored after the first press in
+/// every window.
 struct AlarmKeyboard: NSViewRepresentable {
     var onKey: (AlarmKey) -> Bool
 
