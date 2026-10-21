@@ -15,7 +15,7 @@ alert with **Stop** and **Repeat**.
 
 ```sh
 ./build.sh            # builds build/Balarm.app
-./build.sh install    # builds and copies it to /Applications
+./build.sh install    # builds and moves it to /Applications
 swift test            # runs the unit tests
 ```
 
@@ -31,6 +31,10 @@ swift test -Xswiftc -plugin-path -Xswiftc "$(xcode-select -p)/usr/lib/swift/host
 
 `build.sh` copies the Radial tone from the system's ToneLibrary into the app bundle, so the
 repository contains no Apple audio. The app is ad-hoc signed.
+
+Keep a single copy of `Balarm.app`: with a second one, clicking the alarm's notification can
+start that copy as a second Balarm. `./build.sh install` therefore moves the app rather than
+copying it, and a plain `./build.sh` warns when Balarm is installed as well.
 
 ## Usage
 

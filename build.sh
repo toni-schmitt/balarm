@@ -58,14 +58,19 @@ codesign --force --sign - --identifier "$BUNDLE_ID" "$APP_BUNDLE"
 codesign --verify --strict "$APP_BUNDLE"
 
 if [ "$mode" = install ]; then
-	# The installed app is replaced only once the copy is complete, so a failed
-	# copy leaves the previous version installed.
+	# Moved rather than copied: with a second copy of the app, clicking the alarm's
+	# notification started that copy as a second Balarm. The installed app is
+	# replaced only once the move is complete, so a failed move leaves the previous
+	# version installed.
 	rm -rf "$STAGING_PATH"
-	ditto "$APP_BUNDLE" "$STAGING_PATH"
+	mv "$APP_BUNDLE" "$STAGING_PATH"
 	rm -rf "$INSTALL_PATH"
 	mv "$STAGING_PATH" "$INSTALL_PATH"
 	echo "A running $APP_NAME keeps the previous version in memory until relaunched."
 	echo "Installed $INSTALL_PATH"
 else
+	if [ -d "$INSTALL_PATH" ]; then
+		echo "warning: both $APP_BUNDLE and $INSTALL_PATH exist; clicking the alarm's notification can start the other copy. Run ./build.sh install or delete one." >&2
+	fi
 	echo "$APP_BUNDLE"
 fi
