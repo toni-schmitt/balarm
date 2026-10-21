@@ -76,8 +76,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return false
     }
 
-    // Quitting cancels a running alarm.
+    // Quitting cancels a running alarm. The Dock badge follows the alarm asynchronously, too
+    // late once Balarm exits, so it is cleared here.
     func applicationWillTerminate(_ notification: Notification) {
         controller.stop()
+        NSApp.dockTile.badgeLabel = nil
     }
 }

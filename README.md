@@ -66,11 +66,12 @@ typing a digit replaces it, and Delete clears it at once. The last duration is r
 across launches.
 
 While an alarm runs, it also shows in the menu bar with the time left, like a timer's Live
-Activity. Its menu pauses, restarts or cancels the alarm, stops or repeats it while it rings,
-and shows the window again. Closing the window leaves a running or paused alarm there, and
-clicking Balarm in the Dock brings the window back; closing it while the alarm rings stops it,
-like **Stop**. Without an alarm, closing the window quits Balarm, and once an alarm ends with
-the window closed, Balarm quits too. Quitting cancels a running alarm.
+Activity, and the time left shows on Balarm's Dock icon. The menu bar item's menu pauses,
+restarts or cancels the alarm, stops or repeats it while it rings, and shows the window again.
+Closing the window leaves a running or paused alarm in the menu bar, and clicking Balarm in the
+Dock brings the window back; closing it while the alarm rings stops it, like **Stop**. Without
+an alarm, closing the window quits Balarm, and once an alarm ends with the window closed,
+Balarm quits too. Quitting cancels a running alarm.
 
 While an alarm runs, the Mac does not go to sleep on its own; if it sleeps anyway (lid
 closed), the alarm rings right after waking.
@@ -81,7 +82,8 @@ On first launch macOS asks whether Balarm may send notifications. For the alarm'
 stay on screen until the alarm is stopped, set Balarm's alert style to **Persistent** in System
 Settings › Notifications › Balarm: macOS gives Balarm temporary alerts at first and lets only
 you change that. While the alerts are temporary or turned off, Balarm shows a note with a
-button that opens Notification settings.
+button that opens Notification settings. The time left on Balarm's Dock icon shows only while
+badges are allowed there as well.
 
 Closing the alert with its ✕, or clearing it in Notification Center, stops the alarm like
 **Stop**. With persistent alerts, swiping it away does too, about a second after a trackpad

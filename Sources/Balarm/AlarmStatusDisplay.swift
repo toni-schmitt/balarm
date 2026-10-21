@@ -2,8 +2,8 @@ import AppKit
 import BalarmCore
 import Observation
 
-/// Keeps the menu bar item in step with the alarm, updating it when the second shown changes
-/// instead of polling.
+/// Keeps the menu bar item and the Dock icon's badge in step with the alarm, updating them when
+/// the second shown changes instead of polling.
 @MainActor
 final class AlarmStatusDisplay {
     private let statusItem: AlarmStatusItem
@@ -31,7 +31,7 @@ final class AlarmStatusDisplay {
         shownCountdown = countdown
         tickTask?.cancel()
         let now = ContinuousClock.now
-        statusItem.show(countdown, at: now)
+        show(countdown, at: now)
         guard let countdown else { return }
         tickTask = Task { [weak self] in
             var now = now
@@ -40,8 +40,13 @@ final class AlarmStatusDisplay {
                 guard !Task.isCancelled else { return }
                 guard let self else { return }
                 now = .now
-                statusItem.show(countdown, at: now)
+                show(countdown, at: now)
             }
         }
+    }
+
+    private func show(_ countdown: Countdown?, at now: ContinuousClock.Instant) {
+        statusItem.show(countdown, at: now)
+        NSApp.dockTile.badgeLabel = countdown.map { DurationText.clock(seconds: $0.displaySeconds(at: now)) }
     }
 }

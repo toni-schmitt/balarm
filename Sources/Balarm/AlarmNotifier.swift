@@ -76,7 +76,9 @@ final class AlarmNotifier: NSObject, UNUserNotificationCenterDelegate {
 
         Task {
             do {
-                let granted = try await center.requestAuthorization(options: [.alert])
+                // The badge is the time left on the Dock icon: macOS has been reported to hide
+                // the Dock badge of an app that uses notifications unless it asked for badges.
+                let granted = try await center.requestAuthorization(options: [.alert, .badge])
                 if !granted {
                     log.notice("Notifications are turned off for Balarm; it will only ring")
                 }
