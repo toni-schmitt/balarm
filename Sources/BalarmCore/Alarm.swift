@@ -134,6 +134,13 @@ public struct Alarm: Equatable, Sendable {
         }
     }
 
+    /// Closing the window while it rings dismisses the alarm, like Stop; a running or paused
+    /// countdown carries on without it.
+    public mutating func handleWindowClose() -> [Effect] {
+        guard countdown?.isRinging == true else { return [] }
+        return stop()
+    }
+
     public mutating func ringIfDue(at now: ContinuousClock.Instant) -> [Effect] {
         guard var countdown else { return [] }
         guard countdown.isRunning else { return [] }

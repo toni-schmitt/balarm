@@ -61,9 +61,15 @@ After an alarm ends, its duration stays in the input (dimmed): Return starts it 
 typing a digit replaces it, and Delete clears it at once. The last duration is remembered
 across launches.
 
-Closing the window quits Balarm and cancels a running alarm. While an alarm runs, the Mac
-does not go to sleep on its own; if it sleeps anyway (lid closed), the alarm rings right after
-waking.
+While an alarm runs, it also shows in the menu bar with the time left, like a timer's Live
+Activity. Its menu pauses, restarts or cancels the alarm, stops or repeats it while it rings,
+and shows the window again. Closing the window leaves a running or paused alarm there, and
+clicking Balarm in the Dock brings the window back; closing it while the alarm rings stops it,
+like **Stop**. Without an alarm, closing the window quits Balarm, and once an alarm ends with
+the window closed, Balarm quits too. Quitting cancels a running alarm.
+
+While an alarm runs, the Mac does not go to sleep on its own; if it sleeps anyway (lid
+closed), the alarm rings right after waking.
 
 ## Notifications
 

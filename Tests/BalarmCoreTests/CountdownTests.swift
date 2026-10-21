@@ -95,4 +95,58 @@ import Testing
         #expect(countdown.deadline == nil)
         #expect(!countdown.isDue(at: start + .seconds(120)))
     }
+
+    private static let nextChangeCases: [(elapsed: Double, expected: Double)] = [
+        (0.0, 1.0),
+        (0.5, 1.0),
+        (1.0, 2.0),
+        (58.9, 59.0),
+        (59.5, 60.0),
+    ]
+
+    @Test(arguments: nextChangeCases)
+    func theDisplayNextChangesAtTheNextWholeSecondLeft(elapsed: Double, expected: Double) {
+        let countdown = Countdown(total: .seconds(60), startingAt: start)
+        #expect(countdown.nextDisplayChange(after: start + .seconds(elapsed)) == start + .seconds(expected))
+    }
+
+    /// Over the first seconds and across the hour, every next change is in the future and
+    /// is exactly where the display drops by one.
+    @Test func theNextDisplayChangeIsWhereTheDisplayDropsByOne() throws {
+        let countdown = Countdown(total: .seconds(3700), startingAt: start)
+        let samples = Array(stride(from: 0.0, through: 10, by: 0.05)) + Array(stride(from: 95, through: 105, by: 0.05))
+        for elapsed in samples {
+            let now = start + .seconds(elapsed)
+            let shown = countdown.displaySeconds(at: now)
+            let next = try #require(countdown.nextDisplayChange(after: now))
+            #expect(next > now)
+            #expect(countdown.displaySeconds(at: next) == shown - 1)
+            #expect(countdown.displaySeconds(at: next - .nanoseconds(1)) == shown)
+        }
+    }
+
+    @Test func aResumedCountdownChangesAtItsOwnFractions() {
+        var countdown = Countdown(total: .seconds(60), startingAt: start)
+        countdown.pause(at: start + .milliseconds(10_300))
+        countdown.resume(at: start + .seconds(100))
+        #expect(countdown.nextDisplayChange(after: start + .seconds(100)) == start + .milliseconds(100_700))
+    }
+
+    @Test(arguments: [60.0, 120.0])
+    func aDueCountdownHasNoNextDisplayChange(elapsed: Double) {
+        let countdown = Countdown(total: .seconds(60), startingAt: start)
+        #expect(countdown.nextDisplayChange(after: start + .seconds(elapsed)) == nil)
+    }
+
+    @Test func aPausedCountdownHasNoNextDisplayChange() {
+        var countdown = Countdown(total: .seconds(60), startingAt: start)
+        countdown.pause(at: start + .seconds(10))
+        #expect(countdown.nextDisplayChange(after: start + .seconds(20)) == nil)
+    }
+
+    @Test func aRingingCountdownHasNoNextDisplayChange() {
+        var countdown = Countdown(total: .seconds(60), startingAt: start)
+        countdown.ring()
+        #expect(countdown.nextDisplayChange(after: start + .seconds(60)) == nil)
+    }
 }

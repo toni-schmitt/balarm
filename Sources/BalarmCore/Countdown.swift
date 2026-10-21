@@ -61,6 +61,15 @@ public struct Countdown: Equatable, Sendable {
         return Int(remaining.seconds) + partial
     }
 
+    /// When `displaySeconds` next changes, so a display can update exactly then instead of
+    /// polling; `nil` while paused or ringing, or once due.
+    public func nextDisplayChange(after now: ContinuousClock.Instant) -> ContinuousClock.Instant? {
+        guard let deadline else { return nil }
+        let shown = displaySeconds(at: now)
+        guard shown > 0 else { return nil }
+        return deadline - .seconds(shown - 1)
+    }
+
     public func isDue(at now: ContinuousClock.Instant) -> Bool {
         guard let deadline else { return false }
         return now >= deadline

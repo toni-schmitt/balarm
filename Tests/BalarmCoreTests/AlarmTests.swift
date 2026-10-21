@@ -312,6 +312,23 @@ import Testing
         }
     }
 
+    // MARK: - Closing the window
+
+    @Test func closingTheWindowStopsTheRinging() {
+        var alarm = ringing(seconds: 60)
+        #expect(alarm.handleWindowClose() == stopEffects)
+        #expect(alarm.countdown == nil)
+        #expect(alarm.entry.totalSeconds == 60)
+    }
+
+    @Test func closingTheWindowKeepsACountdownOrTheEntry() {
+        for before in [running(seconds: 60), paused(seconds: 60, after: .seconds(20)), typing(5)] {
+            var alarm = before
+            #expect(alarm.handleWindowClose() == [])
+            #expect(alarm == before)
+        }
+    }
+
     // MARK: - Without a countdown
 
     @Test func stopAndRepeatNeedACountdown() {

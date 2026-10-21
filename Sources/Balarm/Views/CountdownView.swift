@@ -7,7 +7,9 @@ struct CountdownView: View {
 
     var body: some View {
         AlarmScreen(header: DurationText.words(seconds: countdown.totalSeconds)) {
-            TimelineView(.animation(minimumInterval: frameInterval, paused: !countdown.isRunning)) { _ in
+            // SwiftUI keeps redrawing the timeline while the window is closed or hidden.
+            let isPaused = !countdown.isRunning || !controller.isWindowVisible
+            TimelineView(.animation(minimumInterval: frameInterval, paused: isPaused)) { _ in
                 dial(at: .now)
             }
         } buttons: {

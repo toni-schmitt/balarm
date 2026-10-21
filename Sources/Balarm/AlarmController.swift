@@ -22,8 +22,13 @@ final class AlarmController {
     }
 
     /// Opens the alarm window or brings it forward, also out of the Dock. The window provides
-    /// it, since the action that does so comes from its SwiftUI environment.
-    @ObservationIgnored var openWindow: () -> Void = {}
+    /// it once it has appeared, since the action comes from its SwiftUI environment.
+    @ObservationIgnored var openWindow: (() -> Void)?
+    /// Minimized or hidden, the window stays open.
+    private(set) var isWindowOpen = false
+    /// Seen on screen or, minimized, in its Dock tile; hidden, on another Space or covered by
+    /// other windows, the open window is not.
+    private(set) var isWindowVisible = false
 
     @ObservationIgnored private let ringer = Ringer()
     @ObservationIgnored private let notifier = AlarmNotifier()
@@ -94,9 +99,33 @@ final class AlarmController {
         alarm.requestRestart()
     }
 
+    /// The prompt shows in the window, so that comes forward too; asked while the window is
+    /// closed, minimized or hidden, the prompt appears once it is back.
+    func requestRestartInWindow() {
+        showWindow()
+        requestRestart()
+    }
+
     func showWindow() {
         NSApp.activate()
-        openWindow()
+        openWindow?()
+    }
+
+    func windowDidOpen() {
+        isWindowOpen = true
+    }
+
+    func windowDidChangeVisibility(_ isVisible: Bool) {
+        isWindowVisible = isVisible
+        // A visible window is open, even if its opening went unreported.
+        guard isVisible else { return }
+        isWindowOpen = true
+    }
+
+    func windowDidClose() {
+        isWindowOpen = false
+        isWindowVisible = false
+        perform(alarm.handleWindowClose())
     }
 
     func togglePause() {
