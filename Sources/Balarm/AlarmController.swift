@@ -48,6 +48,10 @@ final class AlarmController {
 
     private static let lastDurationKey = "lastDurationSeconds"
 
+    /// With the default tolerance, a sleep may end late by a share of its length: a 60 s sleep
+    /// ended 2.9 s late when measured, so a long alarm would ring well after showing 0:00.
+    private static let fireTolerance: Duration = .milliseconds(5)
+
     init() {
         alarm = Alarm(lastDurationSeconds: UserDefaults.standard.integer(forKey: Self.lastDurationKey))
 
@@ -190,7 +194,7 @@ final class AlarmController {
     private func scheduleFire(at deadline: ContinuousClock.Instant) {
         fireTask?.cancel()
         fireTask = Task { [weak self] in
-            try? await Task.sleep(until: deadline, clock: .continuous)
+            try? await Task.sleep(until: deadline, tolerance: Self.fireTolerance, clock: .continuous)
             guard !Task.isCancelled else { return }
             self?.ringIfDue()
         }
