@@ -22,9 +22,11 @@ final class AlarmNotifier: NSObject, UNUserNotificationCenterDelegate {
     }
 
     struct Timing {
-        /// Short enough that a trackpad swipe stops the ringing about a second after it, and
-        /// well below the detector's `maxSampleGap`, which would otherwise ignore every gap.
-        var swipeCheckInterval: Duration = .milliseconds(250)
+        /// A swipe stops the ringing the detector's `goneThreshold` plus up to one interval
+        /// after the alert leaves the screen. Well below the detector's `maxSampleGap`, which
+        /// would otherwise ignore every gap. A check took about 1 ms with 24 windows on
+        /// screen when measured, 0.3 ms of it CPU.
+        var swipeCheckInterval: Duration = .milliseconds(100)
         /// The clicked alert's overlay left about 0.4 s after the click when measured.
         /// Showing the alert again only after that keeps the new alert's overlay its own.
         var reshowDelay: Duration = .seconds(1)

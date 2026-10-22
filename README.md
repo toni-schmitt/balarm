@@ -86,16 +86,17 @@ button that opens Notification settings. The time left on Balarm's Dock icon sho
 badges are allowed there as well.
 
 Closing the alert with its ✕, or clearing it in Notification Center, stops the alarm like
-**Stop**. With persistent alerts, swiping it away does too, about a second after a trackpad
-swipe or a few seconds after dragging it away with the mouse: macOS does not report a swipe,
-so Balarm notices the alert leaving the screen right after one. Balarm cannot see whose
-notifications are on screen, so a swipe goes unnoticed while another notification is showing
-as well, for the whole alert if one was already on screen when the alarm rang, once a Focus
-has hidden the alert, and with temporary alerts, which leave by themselves. It may also go
-unnoticed for an alarm that rang while the display was asleep. In rare cases, a
-Focus switching on just as you scroll or drag something can stop the alarm. Clicking the alert
-brings Balarm forward and shows the alert again a second later, since the alarm rings on until
-it is stopped.
+**Stop**. With persistent alerts, swiping it away does too, about half a second after a
+trackpad swipe or a few seconds after dragging it away with the mouse: macOS does not report a
+swipe, so Balarm notices the alert leaving the screen right after one. Balarm cannot see whose
+notifications are on screen, so a swipe goes unnoticed while another notification is showing as
+well, for the whole alert if one was already on screen when the alarm rang, once a Focus has
+hidden the alert, and with temporary alerts, which leave by themselves. It also goes unnoticed
+right after unlocking the screen, ending the screen saver or waking the display, which may
+briefly take notifications off the screen, and may go unnoticed for an alarm that rang while
+the display was asleep. In rare cases, a Focus switching on just as you scroll or drag
+something can stop the alarm. Clicking the alert brings Balarm forward and shows the alert
+again a second later, since the alarm rings on until it is stopped.
 
 The tone is played by the app itself, so it rings even when notifications are off or a Focus
 mode is active. A Focus mode can still hold back the alert itself: letting it through needs

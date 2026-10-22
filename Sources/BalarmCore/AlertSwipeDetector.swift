@@ -7,10 +7,10 @@
 /// shortly after posting, with none on screen before, to be the alert's.
 ///
 /// Other things take the overlay away too. Locking the screen and the display sleeping did so
-/// briefly, so only a gap seen to begin while the alert was on screen, right after a scroll or
-/// drag, counts. A Focus hid it for as long as the Focus was on, and what comes back afterwards
-/// may be another app's notification, so after a long gap without a gesture the detector
-/// gives up.
+/// until shortly after the screen was in use again, so only a gap seen to begin while the alert
+/// was on a screen in use for a while, right after a scroll or drag, counts. A Focus hid it for
+/// as long as the Focus was on, and what comes back afterwards may be another app's
+/// notification, so after a long gap without a gesture the detector gives up.
 ///
 /// Persistent alerts only: a temporary banner leaves by itself, which looks the same.
 public struct AlertSwipeDetector: Sendable {
@@ -46,8 +46,16 @@ public struct AlertSwipeDetector: Sendable {
         /// How soon after posting the overlay must come up to count as the alert's. It took
         /// under 0.2 s, also with the screen locked.
         public var appearanceWindow: Duration
-        /// How long the overlay must stay gone after a swipe gesture.
+        /// How long the overlay must stay gone after a swipe gesture: short enough for the
+        /// ringing to stop right after the alert has left, long enough that a flicker spanning a
+        /// few samples is no swipe.
         public var goneThreshold: Duration
+        /// How long the screen must have been in use with the alert posted before a gap counts.
+        /// Unlocking and the display waking took the overlay away for about 0.5 s, beginning at
+        /// most one sample after the screen was in use again, so a sample can show the alert on
+        /// a screen in use just before such a gap. The alert is back only after that, so a
+        /// swipe of it begins later still.
+        public var settleThreshold: Duration
         /// How long a gap without a swipe gesture may last before the overlay that comes back
         /// can no longer be told to be the alert's. After unlocking it was back within 0.5 s;
         /// a Focus kept it away for as long as it was on.
@@ -61,7 +69,8 @@ public struct AlertSwipeDetector: Sendable {
 
         public init(
             appearanceWindow: Duration = .seconds(2),
-            goneThreshold: Duration = .seconds(1),
+            goneThreshold: Duration = .milliseconds(300),
+            settleThreshold: Duration = .milliseconds(500),
             giveUpThreshold: Duration = .seconds(3),
             scrollWindow: Duration = .milliseconds(500),
             dragWindow: Duration = .seconds(4),
@@ -69,6 +78,7 @@ public struct AlertSwipeDetector: Sendable {
         ) {
             self.appearanceWindow = appearanceWindow
             self.goneThreshold = goneThreshold
+            self.settleThreshold = settleThreshold
             self.giveUpThreshold = giveUpThreshold
             self.scrollWindow = scrollWindow
             self.dragWindow = dragWindow
@@ -85,7 +95,8 @@ public struct AlertSwipeDetector: Sendable {
 
     private struct Gap {
         let since: ContinuousClock.Instant
-        /// Seen to begin while the alert was on screen, right after a scroll or drag.
+        /// Seen to begin while the alert was on a screen in use for a while, right after a
+        /// scroll or drag.
         let followsGesture: Bool
     }
 
@@ -101,17 +112,24 @@ public struct AlertSwipeDetector: Sendable {
     private let timing: Timing
     private var phase: Phase
     private var lastSampledAt: ContinuousClock.Instant?
+    /// Posting, the last sample showing the screen out of use, or the first sample after a
+    /// stall, which may have hidden the screen going out of use.
+    private var lastUnsettledAt: ContinuousClock.Instant
 
     /// An overlay already on screen when the alert is posted belongs to another notification.
     public init(postedAt: ContinuousClock.Instant, isOverlayAlreadyOnScreen: Bool, timing: Timing = Timing()) {
         self.postedAt = postedAt
         self.timing = timing
+        // The alarm can ring right after the Mac wakes, before a sample could show the screen
+        // out of use.
+        lastUnsettledAt = postedAt
         phase = isOverlayAlreadyOnScreen ? .gaveUp : .waitingForOverlay
     }
 
     public mutating func observe(_ sample: Sample, at now: ContinuousClock.Instant) -> Outcome {
         let isTimely = lastSampledAt.map { now - $0 <= timing.maxSampleGap } ?? true
         lastSampledAt = now
+        if !sample.isScreenInUse || !isTimely { lastUnsettledAt = now }
         switch phase {
         case .gaveUp:
             return .gaveUp
@@ -159,7 +177,10 @@ public struct AlertSwipeDetector: Sendable {
             phase = .following(owner: owner, gap: nil, alertWasShowing: true)
             return .watching
         }
-        let current = gap ?? Gap(since: now, followsGesture: alertWasShowing && followsGesture(sample))
+        let current = gap ?? Gap(
+            since: now,
+            followsGesture: alertWasShowing && isSettled(at: now) && followsGesture(sample)
+        )
         phase = .following(owner: owner, gap: current, alertWasShowing: false)
         guard current.followsGesture else {
             guard now - current.since >= timing.giveUpThreshold else { return .watching }
@@ -168,6 +189,10 @@ public struct AlertSwipeDetector: Sendable {
         }
         guard now - current.since >= timing.goneThreshold else { return .watching }
         return .swiped
+    }
+
+    private func isSettled(at now: ContinuousClock.Instant) -> Bool {
+        now - lastUnsettledAt >= timing.settleThreshold
     }
 
     private func followsGesture(_ sample: Sample) -> Bool {

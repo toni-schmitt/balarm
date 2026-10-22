@@ -284,13 +284,15 @@ import UserNotifications
 }
 
 private extension AlarmNotifier.Timing {
-    /// Real time passes in these tests, so everything is short; sample gaps stay unchecked.
+    /// Real time passes in these tests, so everything is short; sample gaps stay unchecked, and
+    /// the screen counts as settled at once.
     static let fast = AlarmNotifier.Timing(
         swipeCheckInterval: .milliseconds(5),
         reshowDelay: .milliseconds(20),
         swipe: AlertSwipeDetector.Timing(
             appearanceWindow: .seconds(5),
             goneThreshold: .milliseconds(30),
+            settleThreshold: .zero,
             maxSampleGap: .seconds(5)
         )
     )

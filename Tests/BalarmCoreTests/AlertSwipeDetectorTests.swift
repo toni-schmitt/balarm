@@ -63,20 +63,20 @@ import Testing
         let samples = steps(0, 3.5, .overlay)
             + [Step(at: 3.75, screen: .noOverlay, input: .scrolled(0))]
             + steps(4.0, 5.0, .noOverlay, input: .scrolled(0.5))
-        #expect(outcome(samples).swipedAt == 4.75)
+        #expect(outcome(samples).swipedAt == 4.25)
     }
 
     @Test func aMouseDragIsReported() {
         let samples = steps(0, 5.5, .overlay)
             + [Step(at: 5.75, screen: .noOverlay, input: .dragged(2.5))]
             + steps(6.0, 7.0, .noOverlay, input: .dragged(3))
-        #expect(outcome(samples).swipedAt == 6.75)
+        #expect(outcome(samples).swipedAt == 6.25)
     }
 
     @Test(arguments: [Input.scrolled(0.5), .dragged(4)])
     func aGestureAtTheEdgeOfItsWindowCounts(input: Input) {
         let samples = steps(0, 2, .overlay) + steps(2.25, 3.5, .noOverlay, input: input)
-        #expect(outcome(samples).swipedAt == 3.25)
+        #expect(outcome(samples).swipedAt == 2.75)
     }
 
     @Test(arguments: [Input.scrolled(0.75), .dragged(4.5)])
@@ -85,23 +85,40 @@ import Testing
         #expect(outcome(samples) == (.gaveUp, nil))
     }
 
+    @Test func aSwipeIsReportedOnceTheOverlayStaysGoneLongEnough() {
+        // Just short of and just past 0.3 s; binary fractions keep the times exact.
+        let samples = steps(0, 1.75, .overlay)
+            + [2, 2.28125].map { Step(at: $0, screen: .noOverlay, input: .scrolled(0)) }
+        #expect(outcome(samples) == (.watching, nil))
+        let swipe = Step(at: 2.3125, screen: .noOverlay, input: .scrolled(0))
+        #expect(outcome(samples + [swipe]).swipedAt == 2.3125)
+    }
+
     @Test func aSwipeAfterRingingWhileLockedIsReported() {
         let samples = steps(0, 2.5, .lockedWithOverlay) + steps(2.75, 8, .overlay)
             + steps(8.25, 9.5, .noOverlay, input: .scrolled(0))
-        #expect(outcome(samples).swipedAt == 9.25)
+        #expect(outcome(samples).swipedAt == 8.75)
     }
 
     @Test func aGapWithoutGestureShorterThanGivingUpKeepsWatching() {
         let samples = steps(0, 2, .overlay) + steps(2.25, 4.25, .noOverlay) + steps(4.5, 6, .overlay)
             + steps(6.25, 7.5, .noOverlay, input: .scrolled(0))
-        #expect(outcome(samples).swipedAt == 7.25)
+        #expect(outcome(samples).swipedAt == 6.75)
     }
 
     @Test func aSwipeAfterUnlockingIsReported() {
         // Unlocking took the overlay away for half a second, unseen as it began.
         let samples = steps(0, 2, .lockedWithOverlay) + steps(2.25, 2.75, .noOverlay, input: .scrolled(0.2))
             + steps(3, 5, .overlay) + steps(5.25, 6.5, .noOverlay, input: .scrolled(0))
-        #expect(outcome(samples).swipedAt == 6.25)
+        #expect(outcome(samples).swipedAt == 5.75)
+    }
+
+    @Test func aSwipeSoonAfterUnlockingIsReported() {
+        // Unlocking took the overlay away for half a second; the alert was swiped once back.
+        let samples = steps(0, 2, .lockedWithOverlay) + [Step(at: 2.125, screen: .overlay)]
+            + [2.25, 2.375, 2.5].map { Step(at: $0, screen: .noOverlay) } + [Step(at: 2.625, screen: .overlay)]
+            + [2.75, 2.875, 3, 3.125].map { Step(at: $0, screen: .noOverlay, input: .scrolled(0)) }
+        #expect(outcome(samples).swipedAt == 3.125)
     }
 
     // MARK: - No swipe
@@ -112,7 +129,31 @@ import Testing
     }
 
     @Test func aShortGapIsNoSwipe() {
-        let samples = steps(0, 1, .overlay) + steps(1.25, 2, .noOverlay, input: .scrolled(0)) + steps(2.25, 4, .overlay)
+        let gap = [1.1, 1.2, 1.3].map { Step(at: $0, screen: .noOverlay, input: .scrolled(0)) }
+        let samples = steps(0, 1, .overlay) + gap + steps(1.5, 4, .overlay)
+        #expect(outcome(samples) == (.watching, nil))
+    }
+
+    @Test func aGapRightAfterUnlockingIsNoSwipe() {
+        // Unlocking showed the alert for a moment, then took the overlay away for half a second,
+        // after a drag on the lock screen.
+        let samples = steps(0, 2, .lockedWithOverlay) + [Step(at: 2.1, screen: .overlay, input: .dragged(1))]
+            + [2.2, 2.3, 2.4, 2.5, 2.6].map { Step(at: $0, screen: .noOverlay, input: .dragged(1)) }
+            + steps(2.75, 4, .overlay)
+        #expect(outcome(samples) == (.watching, nil))
+    }
+
+    @Test func aGapRightAfterAStallIsNoSwipe() {
+        // The Mac woke without asking for the password, as the user scrolled.
+        let samples = steps(0, 2, .overlay) + [3602, 3602.1].map { Step(at: $0, screen: .overlay) }
+            + [3602.2, 3602.3, 3602.4, 3602.5, 3602.6].map { Step(at: $0, screen: .noOverlay, input: .scrolled(0.1)) }
+        #expect(outcome(samples) == (.watching, nil))
+    }
+
+    @Test func aGapRightAfterPostingIsNoSwipe() {
+        // The alarm rang as the Mac woke, before a sample could show the screen out of use.
+        let samples = [0.1, 0.2].map { Step(at: $0, screen: .overlay) }
+            + [0.3, 0.4, 0.5, 0.6, 0.7].map { Step(at: $0, screen: .noOverlay, input: .scrolled(0.1)) }
         #expect(outcome(samples) == (.watching, nil))
     }
 
@@ -145,8 +186,8 @@ import Testing
     }
 
     @Test func aStallWithinTheGapStartsItOver() {
-        // The Mac slept between the samples at 2.5 s and 3602.5 s.
-        let samples = steps(0, 2, .overlay) + steps(2.25, 2.5, .noOverlay, input: .scrolled(0))
+        // The Mac slept between the samples at 2.25 s and 3602.5 s.
+        let samples = steps(0, 2, .overlay) + [Step(at: 2.25, screen: .noOverlay, input: .scrolled(0))]
             + steps(3602.5, 3606, .noOverlay, input: .scrolled(0.1))
         #expect(outcome(samples) == (.gaveUp, nil))
     }
