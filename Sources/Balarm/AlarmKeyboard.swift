@@ -29,6 +29,7 @@ struct AlarmKeyboard: NSViewRepresentable {
         init(onKey: @escaping (AlarmKey) -> Bool) {
             self.onKey = onKey
             super.init(frame: .zero)
+            focusRingType = .none
             monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
                 guard let self else { return event }
                 guard let key = AlarmKey(event) else { return event }
@@ -45,6 +46,22 @@ struct AlarmKeyboard: NSViewRepresentable {
         }
 
         required init?(coder: NSCoder) { return nil }
+
+        /// With keyboard navigation turned on in System Settings, AppKit focused the
+        /// window's first control each time it showed the window, drawing a focus ring
+        /// around the duration display. Clearing the focus before that did not stop it,
+        /// and clearing it after left the display focused for a moment. As the window's
+        /// initial first responder, this view takes that focus instead and draws no ring.
+        /// Typing reaches the monitor whatever has focus.
+        override func viewDidMoveToWindow() {
+            window?.initialFirstResponder = self
+        }
+
+        // AppKit gives the initial focus only to a view that accepts it.
+        override var acceptsFirstResponder: Bool { true }
+
+        // Out of the Tab order, so Tab moves between the controls only.
+        override var canBecomeKeyView: Bool { false }
 
         // Only here for its window and lifetime; clicks belong to the content above it,
         // and dragging the window by its background must keep working.
