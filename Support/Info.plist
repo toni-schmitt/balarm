@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleIdentifier</key>
-	<string>com.toni.balarm</string>
+	<string>io.github.toni-schmitt.balarm</string>
 	<key>CFBundleName</key>
 	<string>Balarm</string>
 	<key>CFBundleDisplayName</key>
