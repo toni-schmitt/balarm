@@ -101,3 +101,7 @@ again a second later, since the alarm rings on until it is stopped.
 The tone is played by the app itself, so it rings even when notifications are off or a Focus
 mode is active. A Focus mode can still hold back the alert itself: letting it through needs
 the Time Sensitive entitlement, which an ad-hoc signed app cannot carry.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
