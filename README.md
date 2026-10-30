@@ -9,15 +9,32 @@ alert with **Stop** and **Repeat**.
 ## Requirements
 
 - macOS 26 or later
-- Swift 6.2+ (Xcode Command Line Tools are enough; Xcode is not needed)
+- To build from source: Swift 6.2+ (Xcode Command Line Tools are enough; Xcode is not needed)
 
-## Build and install
+## Install with Homebrew
 
 ```sh
-./build.sh            # builds build/Balarm.app
+brew install --cask toni-schmitt/tap/balarm
+```
+
+This puts Balarm in `/Applications`; open it like any other app. `brew upgrade` replaces it
+even while it runs, and a running Balarm keeps the previous version until you quit and reopen it.
+
+Balarm is ad-hoc signed rather than notarized by Apple, so the cask removes macOS's quarantine
+flag after installing. Otherwise macOS would refuse to open Balarm until it is approved in
+System Settings, and again after every upgrade.
+
+## Build from source
+
+```sh
+./build.sh            # builds build/Balarm.app for this Mac
+./build.sh release    # builds it for Apple silicon and Intel, as releases ship it
 ./build.sh install    # builds and moves it to /Applications
 swift test            # runs the unit tests
 ```
+
+With Swift 6.2 or 6.3, `./build.sh release` needs Xcode: their SwiftPM builds for two
+architectures only with Xcode's build system.
 
 With only the Command Line Tools installed, `swift test` intermittently fails with "plugin for
 module 'TestingMacros' not found", mostly after a debug `swift build`. Running it again clears
@@ -34,7 +51,8 @@ app contains Apple audio. The app is ad-hoc signed.
 
 Keep a single copy of `Balarm.app`: with a second one, clicking the alarm's notification can
 start that copy as a second Balarm. `./build.sh install` therefore moves the app rather than
-copying it, and a plain `./build.sh` warns when Balarm is installed as well.
+copying it, and a plain `./build.sh` warns when `/Applications/Balarm.app` exists as well.
+Use either Homebrew or `./build.sh install`, not both: both install `/Applications/Balarm.app`.
 
 ## Usage
 
