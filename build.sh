@@ -64,7 +64,7 @@ if [ "$mode" = install ]; then
 	echo "Installed $INSTALL_PATH"
 else
 	if [ -d "$INSTALL_PATH" ]; then
-		echo "warning: both $APP_BUNDLE and $INSTALL_PATH exist; clicking the alarm's notification can start the other copy. Run ./build.sh install or delete one." >&2
+		echo "warning: both $APP_BUNDLE and $INSTALL_PATH exist; clicking the alarm's notification can start the other copy. Delete one, or run ./build.sh install if Homebrew did not install $INSTALL_PATH." >&2
 	fi
 	echo "$APP_BUNDLE"
 fi
