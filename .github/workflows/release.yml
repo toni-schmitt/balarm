@@ -1,0 +1,248 @@
+name: Release
+
+# A release carries the app, built for Apple silicon and Intel and zipped, and
+# its checksum. The Homebrew cask in toni-schmitt/homebrew-tap installs it into
+# /Applications.
+#
+# Third-party actions are pinned to commit SHAs, not tags: a tag can be moved to
+# point at new code, a commit SHA cannot. The version each SHA corresponds to is
+# in the trailing comment — update both together.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Test
+    # Balarm needs macOS 26 and its SDK.
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing in this job needs the token afterwards; not
+          # persisting it keeps it out of .git/config.
+          persist-credentials: false
+
+      - name: Check the tag against the app's version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          # A pre-release tag (v1.0.0-rc.1) rehearses the release of 1.0.0.
+          release="${version%%-*}"
+          for key in CFBundleShortVersionString CFBundleVersion; do
+            value=$(/usr/libexec/PlistBuddy -c "Print :$key" Support/Info.plist)
+            if [ "$value" != "$release" ]; then
+              echo "tag $TAG does not match $key $value in Support/Info.plist" >&2
+              exit 1
+            fi
+          done
+
+      - name: Build with the oldest supported Swift
+        # The README promises Swift 6.2 for building from source, which Xcode
+        # 26.0 ships; the default Xcode is newer. The path names an Xcode on the
+        # runner image, so this step fails once the image no longer ships it.
+        # build.sh also runs the icon script with the builder's Swift.
+        env:
+          DEVELOPER_DIR: /Applications/Xcode_26.0.1.app/Contents/Developer
+        run: |
+          set -euo pipefail
+          swift build -c release --scratch-path .build-oldest-swift
+          swift scripts/make-icon.swift "$RUNNER_TEMP/AppIcon.icns"
+
+      - name: Test
+        run: swift test
+
+  release:
+    name: Publish release
+    needs: test
+    runs-on: macos-26
+    permissions:
+      contents: write
+    outputs:
+      sha: ${{ steps.archive.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing in this job needs the token afterwards; not
+          # persisting it keeps it out of .git/config.
+          persist-credentials: false
+
+      - name: Build the app
+        run: ./build.sh release
+
+      - name: Check it runs on Apple silicon and Intel
+        run: |
+          set -euo pipefail
+          archs=$(lipo -archs build/Balarm.app/Contents/MacOS/Balarm)
+          echo "$archs"
+          for arch in arm64 x86_64; do
+            case " $archs " in
+              *" $arch "*) ;;
+              *)
+                echo "the app is missing $arch" >&2
+                exit 1
+                ;;
+            esac
+          done
+
+      - name: Archive and checksum
+        id: archive
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          # The version ends up in file names and URLs, so its shape is
+          # constrained rather than trusted.
+          case "$version" in
+            ''|*[!0-9A-Za-z.+-]*)
+              echo "refusing to release from tag '$TAG'" >&2
+              exit 1
+              ;;
+          esac
+          mkdir -p dist
+          # Without extended attributes: ditto would store them as AppleDouble
+          # files, which Homebrew's unzip leaves inside the bundle, where they
+          # break its code signature.
+          ditto -c -k --norsrc --noextattr --keepParent build/Balarm.app "dist/Balarm-${version}.zip"
+          cd dist
+          shasum -a 256 "Balarm-${version}.zip" > SHA256SUMS
+          cat SHA256SUMS
+          # Prove the file verifies where it will be used: from the directory
+          # holding the archive, exactly as a user running `shasum -a 256 -c` does.
+          shasum -a 256 -c SHA256SUMS
+          echo "sha=$(cut -d' ' -f1 SHA256SUMS)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          files: |
+            dist/Balarm-*.zip
+            dist/SHA256SUMS
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+          # Any tag with a hyphen is a pre-release by semver: v1.0.0-rc.1.
+          prerelease: ${{ contains(github.ref_name, '-') }}
+
+  # Runs once the release is published, since Homebrew downloads its archive the
+  # way users will. A failure here leaves that release without a cask in the
+  # tap, which stays on the previous version.
+  verify-cask:
+    name: Install the cask from the release
+    needs: release
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install, check and audit the cask
+        env:
+          TAG: ${{ github.ref_name }}
+          SHA: ${{ needs.release.outputs.sha }}
+          HOMEBREW_NO_AUTO_UPDATE: '1'
+        run: |
+          set -euo pipefail
+          # Homebrew installs casks only from a tap, so a throwaway local one
+          # stands in for toni-schmitt/homebrew-tap.
+          brew tap-new --no-git local/release-check
+          tap="$(brew --repository local/release-check)"
+          mkdir -p "$tap/Casks"
+          packaging/render-cask.sh "${TAG#v}" "$SHA" > "$tap/Casks/balarm.rb"
+          # Homebrew downloads the archive from the cask's own URL and checks it
+          # against the checksum, which proves both match the published release
+          # before the tap points users at them.
+          brew install --cask local/release-check/balarm
+          app=/Applications/Balarm.app
+          codesign --verify --strict "$app"
+          # Without a quarantined download, the check after this one would pass
+          # whatever the cask does.
+          download="$(brew --cache --cask local/release-check/balarm)"
+          if ! xattr -p com.apple.quarantine "$download" >/dev/null 2>&1; then
+            echo "Homebrew did not quarantine $download" >&2
+            exit 1
+          fi
+          # Homebrew quarantines every file of the download; the cask must have
+          # released them all.
+          quarantined=$(find "$app" -xattrname com.apple.quarantine)
+          if [ -n "$quarantined" ]; then
+            echo "still quarantined:" >&2
+            echo "$quarantined" >&2
+            exit 1
+          fi
+          brew audit --strict --cask local/release-check/balarm
+
+  update-tap:
+    name: Update Homebrew tap
+    needs: [release, verify-cask]
+    # Pre-release tags (v1.0.0-rc.1) must never move the cask that real
+    # `brew install` users resolve.
+    if: ${{ !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    # One tap update at a time from this repository, so two of its releases
+    # never push at once.
+    concurrency:
+      group: homebrew-tap
+      cancel-in-progress: false
+    steps:
+      - name: Check out this repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing in this job needs the token afterwards; not
+          # persisting it keeps it out of .git/config.
+          persist-credentials: false
+
+      - name: Check out the tap
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: toni-schmitt/homebrew-tap
+          token: ${{ secrets.TAP_TOKEN }}
+          path: tap
+          # Required here (unlike the checkout above): the push at the end of
+          # this job authenticates with these persisted credentials.
+          persist-credentials: true
+          # Push from a full clone rather than the default depth-1 shallow one.
+          # The tap is tiny, and this removes any question of the server
+          # rejecting a shallow push.
+          fetch-depth: 0
+
+      - name: Render the cask
+        env:
+          TAG: ${{ github.ref_name }}
+          SHA: ${{ needs.release.outputs.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p tap/Casks
+          packaging/render-cask.sh "${TAG#v}" "$SHA" > tap/Casks/balarm.rb
+          cat tap/Casks/balarm.rb
+
+      - name: Commit and push
+        working-directory: tap
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Stage first, then diff the index. `git diff` alone ignores untracked
+          # files, so on the very first release, when the tap has no Balarm cask
+          # yet, it would report "no changes" and skip the push.
+          git add Casks/balarm.rb
+          if git diff --cached --quiet; then
+            echo "Cask already up to date; nothing to push."
+            exit 0
+          fi
+          git commit -m "balarm ${TAG#v}"
+          # Other repositories' releases push to the tap too.
+          git pull --rebase
+          git push

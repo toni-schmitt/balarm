@@ -1,0 +1,89 @@
+name: Verify tap access
+
+# Manual diagnostic for the one job the release workflow cannot rehearse.
+#
+# `update-tap` is skipped for pre-release tags, so a test tag never exercises
+# it and its first real run is during an actual release — where it runs last,
+# after the release is already published. A bad or missing TAP_TOKEN therefore
+# shows up as a half-finished release rather than a failed one.
+#
+# This checks out the tap with TAP_TOKEN, renders the cask from the current
+# template, and runs `git push --dry-run`. GitHub lists the refs a push could
+# update only to a token that may write to the repository, so the dry run
+# proves write access without sending objects or updating any ref. Rules that
+# GitHub checks only on a real ref update, such as branch protection, stay
+# unchecked. It writes nothing.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify CI can write to the tap
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out this repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check the secret is present at all
+        env:
+          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${TAP_TOKEN:-}" ]; then
+            echo "TAP_TOKEN is not set on this repository." >&2
+            echo "Create a fine-grained PAT with Contents: read and write on" >&2
+            echo "toni-schmitt/homebrew-tap, then: gh secret set TAP_TOKEN" >&2
+            exit 1
+          fi
+          echo "TAP_TOKEN is present (${#TAP_TOKEN} characters)."
+
+      - name: Check out the tap
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: toni-schmitt/homebrew-tap
+          token: ${{ secrets.TAP_TOKEN }}
+          path: tap
+          persist-credentials: true
+          fetch-depth: 0
+
+      - name: Render the cask from the current template
+        # A plausible version and checksum, so the render goes through the same
+        # guards as in a release.
+        run: |
+          set -euo pipefail
+          fake=$(printf '0%.0s' $(seq 1 64))
+          packaging/render-cask.sh 0.0.0 "$fake" > "$RUNNER_TEMP/balarm.rb"
+          ruby -c "$RUNNER_TEMP/balarm.rb"
+          echo "Template renders to syntactically valid Ruby."
+
+      - name: Prove the token can push, without pushing
+        working-directory: tap
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # A new commit gives the dry run a ref update to ask for.
+          git commit -q --allow-empty -m "tap access check (never pushed)"
+          git push --dry-run origin HEAD:main
+          echo "TAP_TOKEN can write to toni-schmitt/homebrew-tap."
+
+      - name: Confirm nothing was actually written
+        working-directory: tap
+        # Runs inside the tap checkout so it authenticates with the persisted
+        # token, the same way the release job's push does.
+        run: |
+          set -euo pipefail
+          remote_sha=$(git ls-remote origin main | cut -f1)
+          local_sha=$(git rev-parse HEAD)
+          echo "tap main on the server: ${remote_sha}"
+          echo "local HEAD (with the throwaway empty commit): ${local_sha}"
+          if [ "$remote_sha" = "$local_sha" ]; then
+            echo "the dry-run push actually landed — it should not have" >&2
+            exit 1
+          fi
+          echo "Confirmed: the tap is unchanged."

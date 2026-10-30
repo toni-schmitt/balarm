@@ -1,0 +1,44 @@
+# Generated from packaging/balarm.rb.tmpl in toni-schmitt/balarm by the
+# `update-tap` job of that repo's release workflow, which substitutes the
+# version and the app archive's checksum from the release being published.
+#
+# Edit the template, never this file: the next release overwrites it.
+cask "balarm" do
+  version "@@VERSION@@"
+  sha256 "@@SHA_APP@@"
+
+  url "https://github.com/toni-schmitt/balarm/releases/download/v#{version}/Balarm-#{version}.zip"
+  name "Balarm"
+  desc "Keyboard-first countdown alarm"
+  homepage "https://github.com/toni-schmitt/balarm"
+
+  depends_on macos: :tahoe
+
+  app "Balarm.app"
+
+  # Balarm is ad-hoc signed, not notarized. With the quarantine flag Homebrew
+  # sets on downloads, macOS refuses to open it until it is approved in System
+  # Settings, and again after every upgrade: Homebrew carries an approval over
+  # to an upgrade only when its signing identity is unchanged, and an ad-hoc
+  # signature changes with every build.
+  postflight_steps do
+    run "/usr/bin/xattr", args: [
+      "-dr",
+      "com.apple.quarantine",
+      "{{appdir}}/Balarm.app",
+    ]
+  end
+
+  # No `uninstall quit:`: quitting Balarm cancels a running alarm, and Homebrew
+  # would quit it on every upgrade. A running Balarm keeps its version until it
+  # is quit.
+  zap trash: "~/Library/Preferences/io.github.toni-schmitt.balarm.plist"
+
+  caveats <<~EOS
+    Balarm is not notarized, so this cask removes macOS's quarantine flag from
+    it after installing, and macOS opens it without asking for approval.
+
+    For the alarm's alert to stay on screen until you stop the alarm, set
+    Balarm's alert style to Persistent in System Settings > Notifications.
+  EOS
+end
