@@ -29,8 +29,8 @@ If retries do not help with Command Line Tools, explicitly provide its Testing p
 swift test -Xswiftc -plugin-path -Xswiftc "$(xcode-select -p)/usr/lib/swift/host/plugins/testing"
 ```
 
-`build.sh` copies the Radial tone from the system's ToneLibrary into the app bundle, so the
-repository contains no Apple audio. The app is ad-hoc signed.
+Balarm plays the Radial tone from the system's ToneLibrary, so neither the repository nor the
+app contains Apple audio. The app is ad-hoc signed.
 
 Keep a single copy of `Balarm.app`: with a second one, clicking the alarm's notification can
 start that copy as a second Balarm. `./build.sh install` therefore moves the app rather than
