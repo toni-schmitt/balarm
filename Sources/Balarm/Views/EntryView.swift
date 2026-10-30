@@ -96,7 +96,9 @@ private struct Roll: ViewModifier {
         content
             .offset(y: position * digitFontSize / 2)
             .blur(radius: abs(position) * 3)
-            .opacity(1 - abs(position))
+            // Swift 6.2 finds `1 - abs(position)` passed as a Double ambiguous between
+            // Double's and CGFloat's `-`, so `position` is converted first.
+            .opacity(1 - abs(Double(position)))
     }
 }
 
